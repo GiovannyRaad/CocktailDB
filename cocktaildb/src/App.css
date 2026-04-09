@@ -1,0 +1,32 @@
+@keyframes tavernTitleDrift {
+  0% {
+    transform: translateY(0);
+    letter-spacing: 0.08em;
+  }
+  50% {
+    transform: translateY(-3px);
+    letter-spacing: 0.09em;
+  }
+  100% {
+    transform: translateY(0);
+    letter-spacing: 0.08em;
+  }
+}
+
+.tavern-title {
+  animation: tavernTitleDrift 6s ease-in-out infinite;
+  font-family: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+}
+
+.tavern-cta {
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    background-color 220ms ease;
+}
+
+.tavern-cta:hover {
+  transform: translateY(-2px) scale(1.02);
+  background-color: #d69d4e;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
+}

@@ -1,5 +1,6 @@
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import selectinload
@@ -17,6 +18,26 @@ from app.schemas.ingredient import IngredientUpdate
 from app.models.ingredient import Ingredient
 
 router = APIRouter(prefix="/api")
+
+
+def _normalize_name(name: str) -> str:
+    return name.strip()
+
+
+def _find_ingredient_by_name_ci(db: Session, ingredient_name: str) -> Ingredient | None:
+    return (
+        db.query(Ingredient)
+        .filter(func.lower(Ingredient.name) == ingredient_name.lower())
+        .first()
+    )
+
+
+def _find_cocktail_by_name_ci(db: Session, cocktail_name: str) -> Cocktail | None:
+    return (
+        db.query(Cocktail)
+        .filter(func.lower(Cocktail.name) == cocktail_name.lower())
+        .first()
+    )
 
 
 def serialize_cocktail(cocktail: Cocktail) -> CocktailRead:
@@ -105,16 +126,16 @@ def create_cocktail(
     cocktail_data: CocktailCreate, db: Session = Depends(get_db)
 ) -> CocktailRead:
     try:
-        existing_cocktail = (
-            db.query(Cocktail)
-            .filter(Cocktail.name == cocktail_data.name)
-            .first()
-        )
+        cocktail_name = _normalize_name(cocktail_data.name)
+        if not cocktail_name:
+            raise HTTPException(status_code=400, detail="Cocktail name cannot be empty")
+
+        existing_cocktail = _find_cocktail_by_name_ci(db, cocktail_name)
         if existing_cocktail:
             raise HTTPException(status_code=409, detail="Cocktail already exists")
 
         cocktail = Cocktail(
-            name=cocktail_data.name,
+            name=cocktail_name,
             image_url=cocktail_data.image_url,
             description=cocktail_data.description,
             instructions=cocktail_data.instructions,
@@ -123,15 +144,11 @@ def create_cocktail(
         db.flush()
 
         for ingredient_data in cocktail_data.cocktail_ingredients:
-            ingredient_name = ingredient_data.ingredient_name.strip()
+            ingredient_name = _normalize_name(ingredient_data.ingredient_name)
             if not ingredient_name:
                 raise HTTPException(status_code=400, detail="Ingredient name cannot be empty")
 
-            ingredient = (
-                db.query(Ingredient)
-                .filter(Ingredient.name == ingredient_name)
-                .first()
-            )
+            ingredient = _find_ingredient_by_name_ci(db, ingredient_name)
             if not ingredient:
                 ingredient = Ingredient(name=ingredient_name)
                 db.add(ingredient)
@@ -213,7 +230,15 @@ def update_cocktail(
             raise HTTPException(status_code=404, detail="Cocktail not found")
 
         if cocktail_data.name is not None:
-            cocktail.name = cocktail_data.name
+            cocktail_name = _normalize_name(cocktail_data.name)
+            if not cocktail_name:
+                raise HTTPException(status_code=400, detail="Cocktail name cannot be empty")
+
+            existing_cocktail = _find_cocktail_by_name_ci(db, cocktail_name)
+            if existing_cocktail and existing_cocktail.id != cocktail.id:
+                raise HTTPException(status_code=409, detail="Cocktail already exists")
+
+            cocktail.name = cocktail_name
         if cocktail_data.image_url is not None:
             cocktail.image_url = cocktail_data.image_url
         if cocktail_data.description is not None:
@@ -227,15 +252,11 @@ def update_cocktail(
             ).delete(synchronize_session=False)
 
             for ingredient_data in cocktail_data.cocktail_ingredients:
-                ingredient_name = ingredient_data.ingredient_name.strip()
+                ingredient_name = _normalize_name(ingredient_data.ingredient_name)
                 if not ingredient_name:
                     raise HTTPException(status_code=400, detail="Ingredient name cannot be empty")
 
-                ingredient = (
-                    db.query(Ingredient)
-                    .filter(Ingredient.name == ingredient_name)
-                    .first()
-                )
+                ingredient = _find_ingredient_by_name_ci(db, ingredient_name)
                 if not ingredient:
                     ingredient = Ingredient(name=ingredient_name)
                     db.add(ingredient)
@@ -294,15 +315,15 @@ def create_ingredient(
     ingredient_data: IngredientCreate, db: Session = Depends(get_db)
 ) -> IngredientRead:
     try:
-        existing_ingredient = (
-            db.query(Ingredient)
-            .filter(Ingredient.name == ingredient_data.name)
-            .first()
-        )
+        ingredient_name = _normalize_name(ingredient_data.name)
+        if not ingredient_name:
+            raise HTTPException(status_code=400, detail="Ingredient name cannot be empty")
+
+        existing_ingredient = _find_ingredient_by_name_ci(db, ingredient_name)
         if existing_ingredient:
             raise HTTPException(status_code=409, detail="Ingredient already exists")
 
-        ingredient = Ingredient(name=ingredient_data.name)
+        ingredient = Ingredient(name=ingredient_name)
         db.add(ingredient)
         db.commit()
         db.refresh(ingredient)
@@ -343,20 +364,41 @@ def update_ingredient(
     ingredient_data: IngredientUpdate,
     db: Session = Depends(get_db),
 ):
-    ingredient = db.query(Ingredient).filter(
-        Ingredient.id == ingredient_id
-    ).first()
+    try:
+        ingredient = db.query(Ingredient).filter(
+            Ingredient.id == ingredient_id
+        ).first()
 
-    if not ingredient:
-        raise HTTPException(status_code=404, detail="Ingredient not found")
+        if not ingredient:
+            raise HTTPException(status_code=404, detail="Ingredient not found")
 
-    if ingredient_data.name is not None:
-        ingredient.name = ingredient_data.name
+        if ingredient_data.name is not None:
+            ingredient_name = _normalize_name(ingredient_data.name)
+            if not ingredient_name:
+                raise HTTPException(status_code=400, detail="Ingredient name cannot be empty")
 
-    db.commit()
-    db.refresh(ingredient)
+            existing_ingredient = _find_ingredient_by_name_ci(db, ingredient_name)
+            if existing_ingredient and existing_ingredient.id != ingredient.id:
+                raise HTTPException(status_code=409, detail="Ingredient already exists")
 
-    return ingredient
+            ingredient.name = ingredient_name
+
+        db.commit()
+        db.refresh(ingredient)
+
+        return IngredientRead.model_validate(ingredient)
+    except HTTPException:
+        db.rollback()
+        raise
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Ingredient already exists") from exc
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Database error while updating ingredient") from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Unexpected error while updating ingredient") from exc
 
 
 

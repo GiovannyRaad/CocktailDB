@@ -168,11 +168,11 @@ function Menu() {
         </motion.section>
 
         {isLoading ? (
-          <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <section className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5">
             {Array.from({ length: 6 }).map((_, index) => (
               <div
                 key={index}
-                className="card h-[22rem] rounded-xl border border-amber-200/20 bg-[#201612]/65 p-4"
+                className="card h-[22rem] rounded-xl border border-amber-200/20 bg-[#201612]/65 p-3 sm:p-4"
               >
                 <div className="skeleton h-36 w-full rounded-lg bg-amber-100/10" />
                 <div className="mt-4 space-y-2">
@@ -198,7 +198,7 @@ function Menu() {
         ) : null}
 
         {!isLoading && !error && hasCocktails ? (
-          <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <section className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5">
             {cocktails.map((cocktail, index) => (
               <CocktailCard
                 key={cocktail.id ?? `${cocktail.name}-${index}`}

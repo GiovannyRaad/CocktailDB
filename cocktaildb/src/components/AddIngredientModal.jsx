@@ -15,11 +15,13 @@ function AddIngredientModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-amber-300/20 bg-[#19120f] p-4 shadow-2xl sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/65 p-3 sm:items-center sm:p-4">
+      <div className="my-2 w-full max-w-lg rounded-2xl border border-amber-300/20 bg-[#19120f] p-4 shadow-2xl sm:my-0 sm:p-6">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 className="font-serif text-2xl text-amber-50">{title}</h3>
+            <h3 className="font-serif text-xl text-amber-50 sm:text-2xl">
+              {title}
+            </h3>
             <p className="text-sm text-amber-100/70">{subtitle}</p>
           </div>
           <button
@@ -48,10 +50,10 @@ function AddIngredientModal({
             />
           </label>
 
-          <div className="flex flex-wrap justify-end gap-2 pt-1">
+          <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:justify-end">
             <button
               type="button"
-              className="btn"
+              className="btn w-full sm:w-auto"
               onClick={onClose}
               disabled={isSavingIngredient}
             >
@@ -59,7 +61,7 @@ function AddIngredientModal({
             </button>
             <button
               type="submit"
-              className="btn btn-primary"
+              className="btn btn-primary w-full sm:w-auto"
               disabled={isSavingIngredient}
             >
               {isSavingIngredient ? savingLabel : submitLabel}

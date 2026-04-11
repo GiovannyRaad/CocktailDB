@@ -1,7 +1,7 @@
 function DashboardHeader({ onOpenAddCocktail, onOpenAddIngredient }) {
   return (
-    <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
-      <div>
+    <header className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="max-w-2xl">
         <p className="text-xs uppercase tracking-[0.3em] text-amber-200/70">
           CocktailDB
         </p>
@@ -13,17 +13,17 @@ function DashboardHeader({ onOpenAddCocktail, onOpenAddIngredient }) {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
         <button
           type="button"
-          className="btn btn-sm"
+          className="btn btn-sm w-full sm:w-auto"
           onClick={onOpenAddCocktail}
         >
           Add Cocktail
         </button>
         <button
           type="button"
-          className="btn btn-sm"
+          className="btn btn-sm w-full sm:w-auto"
           onClick={onOpenAddIngredient}
         >
           Add Ingredient

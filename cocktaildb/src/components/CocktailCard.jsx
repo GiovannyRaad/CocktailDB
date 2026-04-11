@@ -41,12 +41,12 @@ function CocktailCard({ cocktail, index = 0 }) {
         </p>
 
         <div className="card-actions mt-1 justify-end">
-          <button
-            type="button"
+          <a
+            href={cocktail.id ? `/recipe/${cocktail.id}` : "/menu"}
             className="btn btn-sm border-none bg-amber-500 px-4 text-xs font-semibold tracking-wide text-[#24150f] transition duration-300 hover:scale-[1.02] hover:bg-amber-400"
           >
             View Recipe
-          </button>
+          </a>
         </div>
       </div>
     </motion.article>

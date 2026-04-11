@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
 import CocktailCard from "../components/CocktailCard";
+import IngredientFilterModal from "../components/IngredientFilterModal";
+import MenuSearchBar from "../components/MenuSearchBar";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
@@ -31,12 +33,19 @@ function buildIngredientTags(cocktailIngredients) {
 }
 
 function normalizeCocktail(cocktail) {
+  const ingredientNames = Array.isArray(cocktail.cocktail_ingredients)
+    ? cocktail.cocktail_ingredients
+        .map((item) => item?.ingredient_name?.trim?.() ?? "")
+        .filter(Boolean)
+    : [];
+
   return {
     id: cocktail.id,
     name: cocktail.name ?? "Unknown Cocktail",
     description:
       cocktail.description ?? "A house-crafted cocktail from our collection.",
     ingredients: buildIngredientTags(cocktail.cocktail_ingredients),
+    ingredientNames,
     imageUrl: cocktail.image_url ?? "",
   };
 }
@@ -45,6 +54,9 @@ function Menu() {
   const [cocktails, setCocktails] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isIngredientFilterOpen, setIsIngredientFilterOpen] = useState(false);
+  const [selectedIngredients, setSelectedIngredients] = useState([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -87,7 +99,50 @@ function Menu() {
     };
   }, []);
 
+  const allIngredientOptions = useMemo(() => {
+    const values = cocktails.flatMap((cocktail) => cocktail.ingredientNames);
+    return Array.from(new Set(values)).sort((first, second) =>
+      first.localeCompare(second),
+    );
+  }, [cocktails]);
+
+  const filteredCocktails = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return cocktails.filter((cocktail) => {
+      const cocktailName = cocktail.name.toLowerCase();
+      const description = cocktail.description.toLowerCase();
+      const ingredientNamesLower = cocktail.ingredientNames.map((name) =>
+        name.toLowerCase(),
+      );
+
+      const matchesText =
+        !query ||
+        cocktailName.includes(query) ||
+        description.includes(query) ||
+        ingredientNamesLower.some((name) => name.includes(query));
+
+      const matchesIngredients = selectedIngredients.every((selected) =>
+        ingredientNamesLower.includes(selected.toLowerCase()),
+      );
+
+      return matchesText && matchesIngredients;
+    });
+  }, [cocktails, searchQuery, selectedIngredients]);
+
+  function handleToggleIngredientFilter(ingredientName) {
+    setSelectedIngredients((previous) =>
+      previous.includes(ingredientName)
+        ? previous.filter((item) => item !== ingredientName)
+        : [...previous, ingredientName],
+    );
+  }
+
   const hasCocktails = useMemo(() => cocktails.length > 0, [cocktails]);
+  const hasFilteredCocktails = useMemo(
+    () => filteredCocktails.length > 0,
+    [filteredCocktails],
+  );
 
   return (
     <main
@@ -116,58 +171,18 @@ function Menu() {
           <div className="mx-auto mt-6 h-px w-32 bg-gradient-to-r from-transparent via-amber-300/70 to-transparent" />
         </motion.header>
 
-        <motion.section
+        <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15, ease: "easeOut" }}
-          className="mb-8 rounded-2xl border border-amber-200/20 bg-[#221712]/70 p-4 shadow-[0_14px_36px_rgba(0,0,0,0.45)] backdrop-blur-sm sm:p-5"
         >
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-[1.5fr_1fr_auto] md:items-center">
-            <label className="input input-bordered flex items-center gap-2 border-amber-200/25 bg-[#2b1e18]/75 text-amber-50 placeholder:text-amber-100/35">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="h-4 w-4 text-amber-200/70"
-                aria-hidden="true"
-              >
-                <path d="M21 21l-4.35-4.35" />
-                <circle cx="11" cy="11" r="6" />
-              </svg>
-              <input
-                type="text"
-                className="grow"
-                placeholder="Search cocktails (coming soon)"
-                disabled
-              />
-            </label>
-
-            <div className="flex flex-wrap gap-2">
-              {["All", "Classics", "Citrus", "Spirit-Forward"].map((pill) => (
-                <button
-                  key={pill}
-                  type="button"
-                  className="btn btn-sm rounded-full border-amber-300/30 bg-[#2d2019]/70 text-xs tracking-wide text-amber-100 hover:bg-[#3a281e]"
-                >
-                  {pill}
-                </button>
-              ))}
-            </div>
-
-            <select
-              className="select select-bordered border-amber-200/25 bg-[#2b1e18]/75 text-sm text-amber-100"
-              defaultValue="Sort"
-              disabled
-            >
-              <option disabled>Sort</option>
-              <option>A-Z</option>
-              <option>Most Popular</option>
-              <option>Newest</option>
-            </select>
-          </div>
-        </motion.section>
+          <MenuSearchBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onOpenFilter={() => setIsIngredientFilterOpen(true)}
+            activeFilterCount={selectedIngredients.length}
+          />
+        </motion.div>
 
         {isLoading ? (
           <section className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5">
@@ -199,9 +214,15 @@ function Menu() {
           </div>
         ) : null}
 
-        {!isLoading && !error && hasCocktails ? (
+        {!isLoading && !error && hasCocktails && !hasFilteredCocktails ? (
+          <div className="alert border border-amber-300/35 bg-[#2a1d16]/70 text-amber-100">
+            <span>No cocktails match your current search/filter.</span>
+          </div>
+        ) : null}
+
+        {!isLoading && !error && hasCocktails && hasFilteredCocktails ? (
           <section className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5">
-            {cocktails.map((cocktail, index) => (
+            {filteredCocktails.map((cocktail, index) => (
               <CocktailCard
                 key={cocktail.id ?? `${cocktail.name}-${index}`}
                 cocktail={cocktail}
@@ -210,6 +231,15 @@ function Menu() {
             ))}
           </section>
         ) : null}
+
+        <IngredientFilterModal
+          isOpen={isIngredientFilterOpen}
+          ingredients={allIngredientOptions}
+          selectedIngredients={selectedIngredients}
+          onToggleIngredient={handleToggleIngredientFilter}
+          onClear={() => setSelectedIngredients([])}
+          onClose={() => setIsIngredientFilterOpen(false)}
+        />
       </div>
     </main>
   );

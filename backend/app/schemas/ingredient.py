@@ -13,6 +13,10 @@ class IngredientCreate(IngredientBase):
     pass
 
 
+class IngredientUpdate(BaseModel):
+    name: str | None = None
+
+
 class IngredientRead(IngredientBase):
     model_config = ConfigDict(from_attributes=True)
 

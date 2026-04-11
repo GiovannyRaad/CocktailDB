@@ -8,10 +8,12 @@ from app.core.database import get_db
 from app.models.cocktail_ingredient import CocktailIngredient
 from app.schemas.cocktail import CocktailCreate
 from app.schemas.cocktail import CocktailRead
+from app.schemas.cocktail import CocktailUpdate
 from app.schemas.cocktail_ingredient import CocktailIngredientRead
 from app.models.cocktail import Cocktail
 from app.schemas.ingredient import IngredientCreate
 from app.schemas.ingredient import IngredientRead
+from app.schemas.ingredient import IngredientUpdate
 from app.models.ingredient import Ingredient
 
 router = APIRouter(prefix="/api")
@@ -173,6 +175,107 @@ def create_cocktail(
         db.rollback()
         raise HTTPException(status_code=500, detail="Unexpected error while creating cocktail") from exc
 
+
+@router.delete("/cocktails/{cocktail_id}", status_code=204)
+def delete_cocktail(cocktail_id: int, db: Session = Depends(get_db)) -> None:
+    try:
+        cocktail = db.query(Cocktail).filter(Cocktail.id == cocktail_id).first()
+        if not cocktail:
+            raise HTTPException(status_code=404, detail="Cocktail not found")
+
+        db.query(CocktailIngredient).filter(
+            CocktailIngredient.cocktail_id == cocktail_id
+        ).delete(synchronize_session=False)
+        db.delete(cocktail)
+        db.commit()
+        return None
+    except HTTPException:
+        db.rollback()
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Database error while deleting cocktail") from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Unexpected error while deleting cocktail") from exc
+
+
+@router.patch("/cocktails/{cocktail_id}", response_model=CocktailRead)
+def update_cocktail(
+    cocktail_id: int,
+    cocktail_data: CocktailUpdate,
+    db: Session = Depends(get_db),
+):
+    try:
+        cocktail = db.query(Cocktail).filter(Cocktail.id == cocktail_id).first()
+
+        if not cocktail:
+            raise HTTPException(status_code=404, detail="Cocktail not found")
+
+        if cocktail_data.name is not None:
+            cocktail.name = cocktail_data.name
+        if cocktail_data.image_url is not None:
+            cocktail.image_url = cocktail_data.image_url
+        if cocktail_data.description is not None:
+            cocktail.description = cocktail_data.description
+        if cocktail_data.instructions is not None:
+            cocktail.instructions = cocktail_data.instructions
+
+        if cocktail_data.cocktail_ingredients is not None:
+            db.query(CocktailIngredient).filter(
+                CocktailIngredient.cocktail_id == cocktail_id
+            ).delete(synchronize_session=False)
+
+            for ingredient_data in cocktail_data.cocktail_ingredients:
+                ingredient_name = ingredient_data.ingredient_name.strip()
+                if not ingredient_name:
+                    raise HTTPException(status_code=400, detail="Ingredient name cannot be empty")
+
+                ingredient = (
+                    db.query(Ingredient)
+                    .filter(Ingredient.name == ingredient_name)
+                    .first()
+                )
+                if not ingredient:
+                    ingredient = Ingredient(name=ingredient_name)
+                    db.add(ingredient)
+                    db.flush()
+
+                cocktail_ingredient = CocktailIngredient(
+                    cocktail_id=cocktail.id,
+                    ingredient_id=ingredient.id,
+                    amount=ingredient_data.amount,
+                    unit=ingredient_data.unit,
+                    note=ingredient_data.note,
+                )
+                db.add(cocktail_ingredient)
+
+        db.commit()
+
+        updated_cocktail = (
+            db.query(Cocktail)
+            .options(
+                selectinload(Cocktail.cocktail_ingredients).selectinload(
+                    CocktailIngredient.ingredient
+                )
+            )
+            .filter(Cocktail.id == cocktail_id)
+            .first()
+        )
+        if not updated_cocktail:
+            raise HTTPException(status_code=404, detail="Cocktail not found")
+
+        return serialize_cocktail(updated_cocktail)
+    except HTTPException:
+        db.rollback()
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Database error while updating cocktail") from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Unexpected error while updating cocktail") from exc
+
 @router.get("/ingredients", response_model=list[IngredientRead])
 def get_ingredients(db: Session = Depends(get_db)) -> list[IngredientRead]:
     try:
@@ -232,3 +335,50 @@ def get_ingredient(ingredient_id: int, db: Session = Depends(get_db)) -> Ingredi
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail="Unexpected error while fetching ingredient") from exc
+
+
+@router.patch("/ingredients/{ingredient_id}", response_model=IngredientRead)
+def update_ingredient(
+    ingredient_id: int,
+    ingredient_data: IngredientUpdate,
+    db: Session = Depends(get_db),
+):
+    ingredient = db.query(Ingredient).filter(
+        Ingredient.id == ingredient_id
+    ).first()
+
+    if not ingredient:
+        raise HTTPException(status_code=404, detail="Ingredient not found")
+
+    if ingredient_data.name is not None:
+        ingredient.name = ingredient_data.name
+
+    db.commit()
+    db.refresh(ingredient)
+
+    return ingredient
+
+
+
+@router.delete("/ingredients/{ingredient_id}", status_code=204)
+def delete_ingredient(ingredient_id: int, db: Session = Depends(get_db)) -> None:
+    try:
+        ingredient = db.query(Ingredient).filter(Ingredient.id == ingredient_id).first()
+        if not ingredient:
+            raise HTTPException(status_code=404, detail="Ingredient not found")
+
+        db.query(CocktailIngredient).filter(
+            CocktailIngredient.ingredient_id == ingredient_id
+        ).delete(synchronize_session=False)
+        db.delete(ingredient)
+        db.commit()
+        return None
+    except HTTPException:
+        db.rollback()
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Database error while deleting ingredient") from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Unexpected error while deleting ingredient") from exc

@@ -17,6 +17,14 @@ class CocktailCreate(CocktailBase):
     cocktail_ingredients: list[CocktailIngredientCreateRequest] = Field(default_factory=list)
 
 
+class CocktailUpdate(BaseModel):
+    name: str | None = None
+    image_url: str | None = None
+    description: str | None = None
+    instructions: str | None = None
+    cocktail_ingredients: list[CocktailIngredientCreateRequest] | None = None
+
+
 class CocktailRead(CocktailBase):
     model_config = ConfigDict(from_attributes=True)
 

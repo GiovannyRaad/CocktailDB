@@ -2,6 +2,8 @@ function IngredientsTable({
   isLoading,
   ingredients,
   deletingIngredientId,
+  updatingIngredientId,
+  onEditIngredient,
   onDeleteIngredient,
 }) {
   return (
@@ -47,9 +49,13 @@ function IngredientsTable({
                       <div className="flex justify-end gap-2">
                         <button
                           type="button"
-                          className="btn btn-xs btn-disabled"
+                          className="btn btn-xs"
+                          disabled={updatingIngredientId === ingredient.id}
+                          onClick={() => onEditIngredient(ingredient)}
                         >
-                          Edit
+                          {updatingIngredientId === ingredient.id
+                            ? "Saving..."
+                            : "Edit"}
                         </button>
                         <button
                           type="button"

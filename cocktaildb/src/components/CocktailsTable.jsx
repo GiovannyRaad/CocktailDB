@@ -2,6 +2,9 @@ function CocktailsTable({
   isLoading,
   cocktails,
   deletingCocktailId,
+  updatingCocktailId,
+  isUpdatingCocktail,
+  onEditCocktail,
   onDeleteCocktail,
 }) {
   return (
@@ -54,9 +57,17 @@ function CocktailsTable({
                       <div className="flex justify-end gap-2">
                         <button
                           type="button"
-                          className="btn btn-xs btn-disabled"
+                          className="btn btn-xs"
+                          disabled={
+                            isUpdatingCocktail &&
+                            updatingCocktailId === cocktail.id
+                          }
+                          onClick={() => onEditCocktail(cocktail)}
                         >
-                          Edit
+                          {isUpdatingCocktail &&
+                          updatingCocktailId === cocktail.id
+                            ? "Saving..."
+                            : "Edit"}
                         </button>
                         <button
                           type="button"

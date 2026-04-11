@@ -1,4 +1,4 @@
-function DashboardHeader({ onOpenAddCocktail }) {
+function DashboardHeader({ onOpenAddCocktail, onOpenAddIngredient }) {
   return (
     <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
       <div>
@@ -21,7 +21,11 @@ function DashboardHeader({ onOpenAddCocktail }) {
         >
           Add Cocktail
         </button>
-        <button type="button" className="btn btn-sm btn-disabled">
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={onOpenAddIngredient}
+        >
           Add Ingredient
         </button>
       </div>

@@ -1,6 +1,6 @@
 function AddCocktailModal({
   isOpen,
-  isCreatingCocktail,
+  isSavingCocktail,
   form,
   onClose,
   onSubmit,
@@ -8,6 +8,10 @@ function AddCocktailModal({
   onIngredientFieldChange,
   onAddIngredientRow,
   onRemoveIngredientRow,
+  title = "Add Cocktail",
+  subtitle = "Create a cocktail and its ingredient list.",
+  submitLabel = "Create Cocktail",
+  savingLabel = "Saving...",
 }) {
   if (!isOpen) {
     return null;
@@ -18,16 +22,14 @@ function AddCocktailModal({
       <div className="w-full max-w-3xl rounded-2xl border border-amber-300/20 bg-[#19120f] p-4 shadow-2xl sm:p-6">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 className="font-serif text-2xl text-amber-50">Add Cocktail</h3>
-            <p className="text-sm text-amber-100/70">
-              Create a cocktail and its ingredient list.
-            </p>
+            <h3 className="font-serif text-2xl text-amber-50">{title}</h3>
+            <p className="text-sm text-amber-100/70">{subtitle}</p>
           </div>
           <button
             type="button"
             className="btn btn-sm"
             onClick={onClose}
-            disabled={isCreatingCocktail}
+            disabled={isSavingCocktail}
           >
             Close
           </button>
@@ -174,16 +176,16 @@ function AddCocktailModal({
               type="button"
               className="btn"
               onClick={onClose}
-              disabled={isCreatingCocktail}
+              disabled={isSavingCocktail}
             >
               Cancel
             </button>
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={isCreatingCocktail}
+              disabled={isSavingCocktail}
             >
-              {isCreatingCocktail ? "Saving..." : "Create Cocktail"}
+              {isSavingCocktail ? savingLabel : submitLabel}
             </button>
           </div>
         </form>

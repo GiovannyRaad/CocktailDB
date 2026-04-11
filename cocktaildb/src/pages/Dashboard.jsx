@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 import AddCocktailModal from "../components/AddCocktailModal";
+import AddIngredientModal from "../components/AddIngredientModal";
 import CocktailsTable from "../components/CocktailsTable";
 import DashboardHeader from "../components/DashboardHeader";
 import DashboardStats from "../components/DashboardStats";
@@ -20,6 +21,7 @@ function normalizeCocktail(cocktail) {
     name: cocktail.name ?? "Unknown cocktail",
     imageUrl: cocktail.image_url ?? "",
     description: cocktail.description ?? "No description.",
+    instructions: cocktail.instructions ?? "",
     ingredients: Array.isArray(cocktail.cocktail_ingredients)
       ? cocktail.cocktail_ingredients
       : [],
@@ -80,7 +82,20 @@ function Dashboard() {
   const [deletingIngredientId, setDeletingIngredientId] = useState(null);
   const [isAddCocktailOpen, setIsAddCocktailOpen] = useState(false);
   const [isCreatingCocktail, setIsCreatingCocktail] = useState(false);
+  const [isEditCocktailOpen, setIsEditCocktailOpen] = useState(false);
+  const [isUpdatingCocktail, setIsUpdatingCocktail] = useState(false);
+  const [editingCocktailId, setEditingCocktailId] = useState(null);
+  const [isAddIngredientOpen, setIsAddIngredientOpen] = useState(false);
+  const [isCreatingIngredient, setIsCreatingIngredient] = useState(false);
+  const [isEditIngredientOpen, setIsEditIngredientOpen] = useState(false);
+  const [isUpdatingIngredient, setIsUpdatingIngredient] = useState(false);
+  const [editingIngredientId, setEditingIngredientId] = useState(null);
+  const [newIngredientName, setNewIngredientName] = useState("");
+  const [editIngredientName, setEditIngredientName] = useState("");
   const [newCocktailForm, setNewCocktailForm] = useState(
+    createEmptyCocktailForm,
+  );
+  const [editCocktailForm, setEditCocktailForm] = useState(
     createEmptyCocktailForm,
   );
 
@@ -253,6 +268,30 @@ function Dashboard() {
     setNewCocktailForm(createEmptyCocktailForm());
   }
 
+  function toCocktailForm(cocktail) {
+    const rows = Array.isArray(cocktail.ingredients)
+      ? cocktail.ingredients.map((ingredient) => {
+          ingredientRowIdCounter += 1;
+          return {
+            row_id: ingredientRowIdCounter,
+            ingredient_name: ingredient.ingredient_name ?? "",
+            amount: ingredient.amount ?? "1",
+            unit: ingredient.unit ?? "part",
+            note: ingredient.note ?? "",
+          };
+        })
+      : [];
+
+    return {
+      name: cocktail.name ?? "",
+      image_url: cocktail.imageUrl ?? "",
+      description: cocktail.description ?? "",
+      instructions: cocktail.instructions ?? "",
+      cocktail_ingredients:
+        rows.length > 0 ? rows : [createEmptyIngredientRow()],
+    };
+  }
+
   async function handleCreateCocktail(event) {
     event.preventDefault();
 
@@ -321,6 +360,242 @@ function Dashboard() {
     }
   }
 
+  function handleOpenEditCocktailModal(cocktail) {
+    setEditingCocktailId(cocktail.id);
+    setEditCocktailForm(toCocktailForm(cocktail));
+    setIsEditCocktailOpen(true);
+  }
+
+  function handleCloseEditCocktailModal() {
+    setIsEditCocktailOpen(false);
+    setEditingCocktailId(null);
+    setEditCocktailForm(createEmptyCocktailForm());
+  }
+
+  function handleEditCocktailFieldChange(field, value) {
+    setEditCocktailForm((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
+  }
+
+  function handleEditCocktailIngredientFieldChange(index, field, value) {
+    setEditCocktailForm((previous) => ({
+      ...previous,
+      cocktail_ingredients: previous.cocktail_ingredients.map(
+        (row, rowIndex) =>
+          rowIndex === index ? { ...row, [field]: value } : row,
+      ),
+    }));
+  }
+
+  function handleAddEditCocktailIngredientRow() {
+    setEditCocktailForm((previous) => ({
+      ...previous,
+      cocktail_ingredients: [
+        ...previous.cocktail_ingredients,
+        createEmptyIngredientRow(),
+      ],
+    }));
+  }
+
+  function handleRemoveEditCocktailIngredientRow(index) {
+    setEditCocktailForm((previous) => {
+      if (previous.cocktail_ingredients.length === 1) {
+        return {
+          ...previous,
+          cocktail_ingredients: [createEmptyIngredientRow()],
+        };
+      }
+
+      return {
+        ...previous,
+        cocktail_ingredients: previous.cocktail_ingredients.filter(
+          (_, rowIndex) => rowIndex !== index,
+        ),
+      };
+    });
+  }
+
+  async function handleUpdateCocktail(event) {
+    event.preventDefault();
+
+    if (editingCocktailId === null) {
+      toast.error("No cocktail selected for edit.");
+      return;
+    }
+
+    const normalizedIngredients = editCocktailForm.cocktail_ingredients
+      .map((row) => ({
+        ingredient_name: row.ingredient_name.trim(),
+        amount: row.amount.trim(),
+        unit: row.unit.trim(),
+        note: row.note.trim() || null,
+      }))
+      .filter((row) => row.ingredient_name.length > 0);
+
+    if (!editCocktailForm.name.trim()) {
+      toast.error("Cocktail name is required.");
+      return;
+    }
+
+    if (normalizedIngredients.length === 0) {
+      toast.error("Add at least one ingredient.");
+      return;
+    }
+
+    if (
+      normalizedIngredients.some(
+        (row) => !row.amount.length || !row.unit.length,
+      )
+    ) {
+      toast.error("Each ingredient needs both amount and unit.");
+      return;
+    }
+
+    const payload = {
+      name: editCocktailForm.name.trim(),
+      image_url: editCocktailForm.image_url.trim() || null,
+      description: editCocktailForm.description.trim() || null,
+      instructions: editCocktailForm.instructions.trim() || null,
+      cocktail_ingredients: normalizedIngredients,
+    };
+
+    try {
+      setIsUpdatingCocktail(true);
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/cocktails/${editingCocktailId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          await getErrorMessage(response, "Failed to update cocktail."),
+        );
+      }
+
+      await loadDashboardData();
+      setActiveTab("cocktails");
+      setIsEditCocktailOpen(false);
+      setEditingCocktailId(null);
+      setEditCocktailForm(createEmptyCocktailForm());
+      toast.success(`Updated cocktail: ${payload.name}`);
+    } catch (error) {
+      toast.error(error.message || "Failed to update cocktail.");
+    } finally {
+      setIsUpdatingCocktail(false);
+    }
+  }
+
+  function handleCloseAddIngredientModal() {
+    setIsAddIngredientOpen(false);
+    setNewIngredientName("");
+  }
+
+  async function handleCreateIngredient(event) {
+    event.preventDefault();
+
+    const ingredientName = newIngredientName.trim();
+    if (!ingredientName) {
+      toast.error("Ingredient name is required.");
+      return;
+    }
+
+    try {
+      setIsCreatingIngredient(true);
+
+      const response = await fetch(`${API_BASE_URL}/api/ingredients`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: ingredientName }),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await getErrorMessage(response, "Failed to create ingredient."),
+        );
+      }
+
+      await loadDashboardData();
+      setActiveTab("ingredients");
+      setIsAddIngredientOpen(false);
+      setNewIngredientName("");
+      toast.success(`Added ingredient: ${ingredientName}`);
+    } catch (error) {
+      toast.error(error.message || "Failed to create ingredient.");
+    } finally {
+      setIsCreatingIngredient(false);
+    }
+  }
+
+  function handleOpenEditIngredientModal(ingredient) {
+    setEditingIngredientId(ingredient.id);
+    setEditIngredientName(ingredient.name);
+    setIsEditIngredientOpen(true);
+  }
+
+  function handleCloseEditIngredientModal() {
+    setIsEditIngredientOpen(false);
+    setEditingIngredientId(null);
+    setEditIngredientName("");
+  }
+
+  async function handleUpdateIngredient(event) {
+    event.preventDefault();
+
+    if (editingIngredientId === null) {
+      toast.error("No ingredient selected for edit.");
+      return;
+    }
+
+    const ingredientName = editIngredientName.trim();
+    if (!ingredientName) {
+      toast.error("Ingredient name is required.");
+      return;
+    }
+
+    try {
+      setIsUpdatingIngredient(true);
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/ingredients/${editingIngredientId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: ingredientName }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          await getErrorMessage(response, "Failed to update ingredient."),
+        );
+      }
+
+      await loadDashboardData();
+      setActiveTab("ingredients");
+      setIsEditIngredientOpen(false);
+      setEditingIngredientId(null);
+      setEditIngredientName("");
+      toast.success(`Updated ingredient: ${ingredientName}`);
+    } catch (error) {
+      toast.error(error.message || "Failed to update ingredient.");
+    } finally {
+      setIsUpdatingIngredient(false);
+    }
+  }
+
   return (
     <main
       data-theme="dark"
@@ -337,6 +612,7 @@ function Dashboard() {
         >
           <DashboardHeader
             onOpenAddCocktail={() => setIsAddCocktailOpen(true)}
+            onOpenAddIngredient={() => setIsAddIngredientOpen(true)}
           />
         </motion.div>
 
@@ -352,6 +628,9 @@ function Dashboard() {
             isLoading={isLoading}
             cocktails={cocktails}
             deletingCocktailId={deletingCocktailId}
+            updatingCocktailId={editingCocktailId}
+            isUpdatingCocktail={isUpdatingCocktail}
+            onEditCocktail={handleOpenEditCocktailModal}
             onDeleteCocktail={handleDeleteCocktail}
           />
         ) : (
@@ -359,13 +638,15 @@ function Dashboard() {
             isLoading={isLoading}
             ingredients={ingredients}
             deletingIngredientId={deletingIngredientId}
+            updatingIngredientId={editingIngredientId}
+            onEditIngredient={handleOpenEditIngredientModal}
             onDeleteIngredient={handleDeleteIngredient}
           />
         )}
 
         <AddCocktailModal
           isOpen={isAddCocktailOpen}
-          isCreatingCocktail={isCreatingCocktail}
+          isSavingCocktail={isCreatingCocktail}
           form={newCocktailForm}
           onClose={handleCloseAddCocktailModal}
           onSubmit={handleCreateCocktail}
@@ -373,6 +654,44 @@ function Dashboard() {
           onIngredientFieldChange={handleIngredientFieldChange}
           onAddIngredientRow={handleAddIngredientRow}
           onRemoveIngredientRow={handleRemoveIngredientRow}
+        />
+
+        <AddCocktailModal
+          isOpen={isEditCocktailOpen}
+          isSavingCocktail={isUpdatingCocktail}
+          form={editCocktailForm}
+          onClose={handleCloseEditCocktailModal}
+          onSubmit={handleUpdateCocktail}
+          onMainFieldChange={handleEditCocktailFieldChange}
+          onIngredientFieldChange={handleEditCocktailIngredientFieldChange}
+          onAddIngredientRow={handleAddEditCocktailIngredientRow}
+          onRemoveIngredientRow={handleRemoveEditCocktailIngredientRow}
+          title="Edit Cocktail"
+          subtitle="Update cocktail details and ingredient list."
+          submitLabel="Save Changes"
+          savingLabel="Saving..."
+        />
+
+        <AddIngredientModal
+          isOpen={isAddIngredientOpen}
+          isSavingIngredient={isCreatingIngredient}
+          ingredientName={newIngredientName}
+          onChangeName={setNewIngredientName}
+          onClose={handleCloseAddIngredientModal}
+          onSubmit={handleCreateIngredient}
+        />
+
+        <AddIngredientModal
+          isOpen={isEditIngredientOpen}
+          isSavingIngredient={isUpdatingIngredient}
+          ingredientName={editIngredientName}
+          onChangeName={setEditIngredientName}
+          onClose={handleCloseEditIngredientModal}
+          onSubmit={handleUpdateIngredient}
+          title="Edit Ingredient"
+          subtitle="Update an existing ingredient name."
+          submitLabel="Save Changes"
+          savingLabel="Saving..."
         />
       </div>
     </main>

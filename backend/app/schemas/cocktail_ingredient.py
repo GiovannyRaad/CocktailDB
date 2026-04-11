@@ -14,6 +14,10 @@ class CocktailIngredientCreate(CocktailIngredientBase):
     ingredient_id: int
 
 
+class CocktailIngredientCreateRequest(CocktailIngredientBase):
+    ingredient_name: str
+
+
 class CocktailIngredientRead(CocktailIngredientBase):
     model_config = ConfigDict(from_attributes=True)
 

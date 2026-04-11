@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.cocktail_ingredient import CocktailIngredientCreateRequest
 from app.schemas.cocktail_ingredient import CocktailIngredientRead
 
 
@@ -13,7 +14,7 @@ class CocktailBase(BaseModel):
 
 
 class CocktailCreate(CocktailBase):
-    pass
+    cocktail_ingredients: list[CocktailIngredientCreateRequest] = Field(default_factory=list)
 
 
 class CocktailRead(CocktailBase):

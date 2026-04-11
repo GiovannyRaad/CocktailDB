@@ -7,6 +7,7 @@ from app.schemas.cocktail_ingredient import CocktailIngredientRead
 
 class CocktailBase(BaseModel):
     name: str
+    image_url: str | None = None
     description: str | None = None
     instructions: str | None = None
 

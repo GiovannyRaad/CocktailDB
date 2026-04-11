@@ -14,6 +14,7 @@ class Cocktail(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
+    image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     instructions: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 

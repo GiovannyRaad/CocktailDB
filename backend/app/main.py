@@ -11,7 +11,10 @@ import app.models
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_db_and_tables()
+    try:
+        create_db_and_tables()
+    except ConnectionError as exc:
+        raise RuntimeError("Unable to start CocktailDB API because the database is unavailable") from exc
     yield
 
 

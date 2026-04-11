@@ -1,11 +1,12 @@
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
 import AddCocktailModal from "../components/AddCocktailModal";
 import AddIngredientModal from "../components/AddIngredientModal";
 import CocktailsTable from "../components/CocktailsTable";
 import DashboardHeader from "../components/DashboardHeader";
+import DashboardSearchBar from "../components/DashboardSearchBar";
 import DashboardStats from "../components/DashboardStats";
 import DashboardTabs from "../components/DashboardTabs";
 import IngredientsTable from "../components/IngredientsTable";
@@ -90,6 +91,8 @@ function Dashboard() {
   const [isEditIngredientOpen, setIsEditIngredientOpen] = useState(false);
   const [isUpdatingIngredient, setIsUpdatingIngredient] = useState(false);
   const [editingIngredientId, setEditingIngredientId] = useState(null);
+  const [cocktailSearchQuery, setCocktailSearchQuery] = useState("");
+  const [ingredientSearchQuery, setIngredientSearchQuery] = useState("");
   const [newIngredientName, setNewIngredientName] = useState("");
   const [editIngredientName, setEditIngredientName] = useState("");
   const [newCocktailForm, setNewCocktailForm] = useState(
@@ -98,6 +101,38 @@ function Dashboard() {
   const [editCocktailForm, setEditCocktailForm] = useState(
     createEmptyCocktailForm,
   );
+
+  const filteredCocktails = useMemo(() => {
+    const query = cocktailSearchQuery.trim().toLowerCase();
+    if (!query) {
+      return cocktails;
+    }
+
+    return cocktails.filter((cocktail) => {
+      const ingredientText = cocktail.ingredients
+        .map((ingredient) => ingredient.ingredient_name ?? "")
+        .join(" ")
+        .toLowerCase();
+
+      return (
+        cocktail.name.toLowerCase().includes(query) ||
+        cocktail.description.toLowerCase().includes(query) ||
+        cocktail.instructions.toLowerCase().includes(query) ||
+        ingredientText.includes(query)
+      );
+    });
+  }, [cocktails, cocktailSearchQuery]);
+
+  const filteredIngredients = useMemo(() => {
+    const query = ingredientSearchQuery.trim().toLowerCase();
+    if (!query) {
+      return ingredients;
+    }
+
+    return ingredients.filter((ingredient) =>
+      ingredient.name.toLowerCase().includes(query),
+    );
+  }, [ingredients, ingredientSearchQuery]);
 
   async function loadDashboardData() {
     const [cocktailsResponse, ingredientsResponse] = await Promise.all([
@@ -624,9 +659,23 @@ function Dashboard() {
         <DashboardTabs activeTab={activeTab} onChangeTab={setActiveTab} />
 
         {activeTab === "cocktails" ? (
+          <DashboardSearchBar
+            value={cocktailSearchQuery}
+            onChange={setCocktailSearchQuery}
+            placeholder="Search cocktails by name, description, or ingredient"
+          />
+        ) : (
+          <DashboardSearchBar
+            value={ingredientSearchQuery}
+            onChange={setIngredientSearchQuery}
+            placeholder="Search ingredients by name"
+          />
+        )}
+
+        {activeTab === "cocktails" ? (
           <CocktailsTable
             isLoading={isLoading}
-            cocktails={cocktails}
+            cocktails={filteredCocktails}
             deletingCocktailId={deletingCocktailId}
             updatingCocktailId={editingCocktailId}
             isUpdatingCocktail={isUpdatingCocktail}
@@ -636,7 +685,7 @@ function Dashboard() {
         ) : (
           <IngredientsTable
             isLoading={isLoading}
-            ingredients={ingredients}
+            ingredients={filteredIngredients}
             deletingIngredientId={deletingIngredientId}
             updatingIngredientId={editingIngredientId}
             onEditIngredient={handleOpenEditIngredientModal}

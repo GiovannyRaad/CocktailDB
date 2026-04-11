@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 
 import CocktailCard from "../components/CocktailCard";
 
@@ -71,6 +72,7 @@ function Menu() {
             "Unable to load cocktails right now. Make sure the backend is running on port 8000.",
           );
           setCocktails([]);
+          toast.error("Could not load cocktails.");
         }
       } finally {
         if (isMounted) {

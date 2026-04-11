@@ -28,7 +28,7 @@ function CocktailCard({ cocktail, index = 0 }) {
               "https://placehold.co/640x960/png?text=CocktailDB";
           }}
         />
-          <span className="pointer-events-none absolute inset-0 border-2 border-amber-200 opacity-0 transition-all duration-200 ease-out group-hover:opacity-100 group-active:opacity-100 group-hover:shadow-[inset_0_0_0_2px_rgba(253,224,71,1),0_0_24px_rgba(251,191,36,0.9)] group-active:shadow-[inset_0_0_0_3px_rgba(254,240,138,1),0_0_34px_rgba(251,191,36,1)]" />
+        <span className="pointer-events-none absolute inset-0 border-2 border-amber-200 opacity-0 transition-all duration-200 ease-out group-hover:opacity-100 group-active:opacity-100 group-hover:shadow-[inset_0_0_0_2px_rgba(253,224,71,1),0_0_24px_rgba(251,191,36,0.9)] group-active:shadow-[inset_0_0_0_3px_rgba(254,240,138,1),0_0_34px_rgba(251,191,36,1)]" />
       </figure>
 
       <div className="card-body gap-3 p-3 sm:p-4">

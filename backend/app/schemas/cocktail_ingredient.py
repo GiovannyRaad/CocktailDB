@@ -20,3 +20,4 @@ class CocktailIngredientRead(CocktailIngredientBase):
     id: int
     cocktail_id: int
     ingredient_id: int
+    ingredient_name: str | None = None

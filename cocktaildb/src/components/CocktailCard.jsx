@@ -1,6 +1,8 @@
 import { motion } from "motion/react";
 
 function CocktailCard({ cocktail, index = 0 }) {
+  const imageAlt = `${cocktail.name} cocktail`;
+
   return (
     <motion.article
       initial={{ opacity: 0, y: 24 }}
@@ -17,6 +19,20 @@ function CocktailCard({ cocktail, index = 0 }) {
     >
       <div className="h-1.5 rounded-t-xl bg-gradient-to-r from-amber-300/80 via-amber-500/80 to-amber-200/80" />
 
+      <figure className="relative h-40 overflow-hidden">
+        <img
+          src={cocktail.imageUrl}
+          alt={imageAlt}
+          loading="lazy"
+          className="h-full w-full object-cover opacity-90 transition-transform duration-300 group-hover:scale-105"
+          onError={(event) => {
+            event.currentTarget.src =
+              "https://placehold.co/640x960/png?text=CocktailDB";
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#201612]/90 via-[#201612]/20 to-transparent" />
+      </figure>
+
       <div className="card-body gap-5 p-6">
         <div className="space-y-3">
           <h3 className="font-serif text-2xl tracking-wide text-amber-50">
@@ -28,9 +44,9 @@ function CocktailCard({ cocktail, index = 0 }) {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {cocktail.ingredients.map((ingredient) => (
+          {cocktail.ingredients.map((ingredient, ingredientIndex) => (
             <span
-              key={ingredient}
+              key={`${ingredient}-${ingredientIndex}`}
               className="badge badge-outline border-amber-300/45 bg-[#2d201a]/70 px-3 py-3 text-xs tracking-[0.14em] text-amber-100"
             >
               {ingredient}

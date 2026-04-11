@@ -2,14 +2,39 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
+from app.models.cocktail_ingredient import CocktailIngredient
 from app.schemas.cocktail import CocktailRead
+from app.schemas.cocktail_ingredient import CocktailIngredientRead
 from app.models.cocktail import Cocktail
 from app.schemas.ingredient import IngredientRead
 from app.models.ingredient import Ingredient
 
 router = APIRouter(prefix="/api")
+
+
+def serialize_cocktail(cocktail: Cocktail) -> CocktailRead:
+    return CocktailRead(
+        id=cocktail.id,
+        name=cocktail.name,
+        image_url=cocktail.image_url,
+        description=cocktail.description,
+        instructions=cocktail.instructions,
+        cocktail_ingredients=[
+            CocktailIngredientRead(
+                id=cocktail_ingredient.id,
+                cocktail_id=cocktail_ingredient.cocktail_id,
+                ingredient_id=cocktail_ingredient.ingredient_id,
+                ingredient_name=cocktail_ingredient.ingredient.name if cocktail_ingredient.ingredient else None,
+                amount=cocktail_ingredient.amount,
+                unit=cocktail_ingredient.unit,
+                note=cocktail_ingredient.note,
+            )
+            for cocktail_ingredient in cocktail.cocktail_ingredients
+        ],
+    )
 
 
 @router.get("/health")
@@ -27,9 +52,16 @@ def info() -> dict[str, str]:
 @router.get("/cocktails", response_model=list[CocktailRead])
 def get_cocktails(db: Session = Depends(get_db)) -> list[CocktailRead]:
     try:
-        cocktails = db.query(Cocktail).all()
-        # Validate that cocktail is a CocktailRead model and return it as list
-        return [CocktailRead.model_validate(cocktail) for cocktail in cocktails]
+        cocktails = (
+            db.query(Cocktail)
+            .options(
+                selectinload(Cocktail.cocktail_ingredients).selectinload(
+                    CocktailIngredient.ingredient
+                )
+            )
+            .all()
+        )
+        return [serialize_cocktail(cocktail) for cocktail in cocktails]
     except SQLAlchemyError as exc:
         db.rollback()
         raise HTTPException(status_code=503, detail="Database error while fetching cocktails") from exc
@@ -41,10 +73,19 @@ def get_cocktails(db: Session = Depends(get_db)) -> list[CocktailRead]:
 @router.get("/cocktails/{cocktail_id}", response_model=CocktailRead)
 def get_cocktail(cocktail_id: int, db: Session = Depends(get_db)) -> CocktailRead:
     try:
-        cocktail = db.query(Cocktail).filter(Cocktail.id == cocktail_id).first()
+        cocktail = (
+            db.query(Cocktail)
+            .options(
+                selectinload(Cocktail.cocktail_ingredients).selectinload(
+                    CocktailIngredient.ingredient
+                )
+            )
+            .filter(Cocktail.id == cocktail_id)
+            .first()
+        )
         if not cocktail:
             raise HTTPException(status_code=404, detail="Cocktail not found")
-        return CocktailRead.model_validate(cocktail)
+        return serialize_cocktail(cocktail)
     except HTTPException:
         raise
     except SQLAlchemyError as exc:

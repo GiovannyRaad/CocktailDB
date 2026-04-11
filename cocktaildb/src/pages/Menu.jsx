@@ -1,41 +1,92 @@
 import { motion } from "motion/react";
+import { useEffect, useMemo, useState } from "react";
 
 import CocktailCard from "../components/CocktailCard";
 
-const MOCK_COCKTAILS = [
-  {
-    name: "Old Fashioned",
-    description: "A bold whiskey classic mellowed with sugar and aromatic bitters.",
-    ingredients: ["Bourbon", "Bitters", "Orange Peel"],
-  },
-  {
-    name: "Margarita",
-    description: "Bright citrus and tequila balance with a crisp salted edge.",
-    ingredients: ["Tequila", "Lime", "Triple Sec"],
-  },
-  {
-    name: "Mojito",
-    description: "Cooling mint and rum topped with sparkling freshness.",
-    ingredients: ["White Rum", "Mint", "Lime"],
-  },
-  {
-    name: "Negroni",
-    description: "A bittersweet aperitif with deep botanical character.",
-    ingredients: ["Gin", "Campari", "Vermouth"],
-  },
-  {
-    name: "Whiskey Sour",
-    description: "Silky, tart, and warm with a balanced citrus finish.",
-    ingredients: ["Whiskey", "Lemon", "Simple Syrup"],
-  },
-  {
-    name: "Daiquiri",
-    description: "Elegant and direct: rum, lime, and sugar in perfect harmony.",
-    ingredients: ["White Rum", "Lime", "Cane Syrup"],
-  },
-];
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
+
+function buildIngredientTags(cocktailIngredients) {
+  if (!Array.isArray(cocktailIngredients) || cocktailIngredients.length === 0) {
+    return ["Recipe", "Details", "Soon"];
+  }
+
+  const tags = cocktailIngredients
+    .map((item) => {
+      const ingredientName = item?.ingredient_name?.trim?.() ?? "";
+      if (ingredientName) {
+        return ingredientName;
+      }
+
+      const amount = item?.amount?.trim?.() ?? "";
+      const unit = item?.unit?.trim?.() ?? "";
+      const combined = `${amount} ${unit}`.trim();
+      return combined || null;
+    })
+    .filter(Boolean)
+    .slice(0, 3);
+
+  return tags.length > 0 ? tags : ["Recipe", "Details", "Soon"];
+}
+
+function normalizeCocktail(cocktail) {
+  return {
+    id: cocktail.id,
+    name: cocktail.name ?? "Unknown Cocktail",
+    description:
+      cocktail.description ?? "A house-crafted cocktail from our collection.",
+    ingredients: buildIngredientTags(cocktail.cocktail_ingredients),
+    imageUrl: cocktail.image_url ?? "",
+  };
+}
 
 function Menu() {
+  const [cocktails, setCocktails] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCocktails() {
+      try {
+        setIsLoading(true);
+        setError("");
+
+        const response = await fetch(`${API_BASE_URL}/api/cocktails`);
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (isMounted) {
+          const normalized = Array.isArray(data)
+            ? data.map(normalizeCocktail)
+            : [];
+          setCocktails(normalized);
+        }
+      } catch (fetchError) {
+        if (isMounted) {
+          setError(
+            "Unable to load cocktails right now. Make sure the backend is running on port 8000.",
+          );
+          setCocktails([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadCocktails();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const hasCocktails = useMemo(() => cocktails.length > 0, [cocktails]);
+
   return (
     <main
       data-theme="dark"
@@ -51,7 +102,9 @@ function Menu() {
           transition={{ duration: 0.6, ease: "easeOut" }}
           className="mb-10 text-center sm:mb-12"
         >
-          <p className="text-xs uppercase tracking-[0.4em] text-amber-200/70">CocktailDB</p>
+          <p className="text-xs uppercase tracking-[0.4em] text-amber-200/70">
+            CocktailDB
+          </p>
           <h1 className="mt-4 font-serif text-5xl leading-tight tracking-[0.03em] text-amber-50 sm:text-6xl">
             The Tavern Menu
           </h1>
@@ -81,7 +134,12 @@ function Menu() {
                 <path d="M21 21l-4.35-4.35" />
                 <circle cx="11" cy="11" r="6" />
               </svg>
-              <input type="text" className="grow" placeholder="Search cocktails (coming soon)" disabled />
+              <input
+                type="text"
+                className="grow"
+                placeholder="Search cocktails (coming soon)"
+                disabled
+              />
             </label>
 
             <div className="flex flex-wrap gap-2">
@@ -109,11 +167,47 @@ function Menu() {
           </div>
         </motion.section>
 
-        <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {MOCK_COCKTAILS.map((cocktail, index) => (
-            <CocktailCard key={cocktail.name} cocktail={cocktail} index={index} />
-          ))}
-        </section>
+        {isLoading ? (
+          <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div
+                key={index}
+                className="card h-[22rem] rounded-xl border border-amber-200/20 bg-[#201612]/65 p-4"
+              >
+                <div className="skeleton h-36 w-full rounded-lg bg-amber-100/10" />
+                <div className="mt-4 space-y-2">
+                  <div className="skeleton h-4 w-3/5 bg-amber-100/10" />
+                  <div className="skeleton h-3 w-full bg-amber-100/10" />
+                  <div className="skeleton h-3 w-4/5 bg-amber-100/10" />
+                </div>
+              </div>
+            ))}
+          </section>
+        ) : null}
+
+        {!isLoading && error ? (
+          <div className="alert alert-error border border-red-400/35 bg-[#2a1010]/70 text-red-100">
+            <span>{error}</span>
+          </div>
+        ) : null}
+
+        {!isLoading && !error && !hasCocktails ? (
+          <div className="alert border border-amber-300/35 bg-[#2a1d16]/70 text-amber-100">
+            <span>No cocktails found in the database yet.</span>
+          </div>
+        ) : null}
+
+        {!isLoading && !error && hasCocktails ? (
+          <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {cocktails.map((cocktail, index) => (
+              <CocktailCard
+                key={cocktail.id ?? `${cocktail.name}-${index}`}
+                cocktail={cocktail}
+                index={index}
+              />
+            ))}
+          </section>
+        ) : null}
       </div>
     </main>
   );

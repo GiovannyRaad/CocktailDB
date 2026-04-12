@@ -2,9 +2,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router as api_router
+from app.core.config import UPLOADS_DIR
 from app.core.database import create_db_and_tables
+from app.core.image_service import ensure_upload_directories
 import app.models
 
 
@@ -12,6 +15,7 @@ import app.models
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
+        ensure_upload_directories()
         create_db_and_tables()
     except ConnectionError as exc:
         raise RuntimeError("Unable to start CocktailDB API because the database is unavailable") from exc
@@ -27,6 +31,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+ensure_upload_directories()
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
 app.include_router(api_router)
 

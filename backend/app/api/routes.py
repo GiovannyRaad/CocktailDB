@@ -1,5 +1,8 @@
+import json
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi import File, Form, UploadFile
+from pydantic import ValidationError
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -9,10 +12,12 @@ from app.core.auth import create_access_token
 from app.core.auth import require_authenticated_user
 from app.core.auth import verify_password
 from app.core.database import get_db
+from app.core.image_service import process_and_store_cocktail_image
 from app.models.cocktail_ingredient import CocktailIngredient
 from app.schemas.cocktail import CocktailCreate
 from app.schemas.cocktail import CocktailRead
 from app.schemas.cocktail import CocktailUpdate
+from app.schemas.cocktail_ingredient import CocktailIngredientCreateRequest
 from app.schemas.cocktail_ingredient import CocktailIngredientRead
 from app.models.cocktail import Cocktail
 from app.schemas.ingredient import IngredientCreate
@@ -43,6 +48,25 @@ def _find_cocktail_by_name_ci(db: Session, cocktail_name: str) -> Cocktail | Non
         .filter(func.lower(Cocktail.name) == cocktail_name.lower())
         .first()
     )
+
+
+def _parse_cocktail_ingredients_payload(
+    cocktail_ingredients: str,
+) -> list[CocktailIngredientCreateRequest]:
+    try:
+        payload = json.loads(cocktail_ingredients)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Invalid ingredients payload") from exc
+
+    if not isinstance(payload, list):
+        raise HTTPException(status_code=400, detail="Ingredients payload must be a list")
+
+    try:
+        return [
+            CocktailIngredientCreateRequest.model_validate(item) for item in payload
+        ]
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail="Invalid ingredient fields") from exc
 
 
 def serialize_cocktail(cocktail: Cocktail) -> CocktailRead:
@@ -174,12 +198,26 @@ def get_cocktail(cocktail_id: int, db: Session = Depends(get_db)) -> CocktailRea
     dependencies=[Depends(require_authenticated_user)],
 )
 def create_cocktail(
-    cocktail_data: CocktailCreate, db: Session = Depends(get_db)
+    name: str = Form(...),
+    description: str | None = Form(None),
+    instructions: str | None = Form(None),
+    cocktail_ingredients: str = Form("[]"),
+    image: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
 ) -> CocktailRead:
     try:
-        cocktail_name = _normalize_name(cocktail_data.name)
+        cocktail_name = _normalize_name(name)
         if not cocktail_name:
             raise HTTPException(status_code=400, detail="Cocktail name cannot be empty")
+
+        parsed_ingredients = _parse_cocktail_ingredients_payload(cocktail_ingredients)
+
+        image_url: str | None = None
+        if image is not None:
+            try:
+                image_url = process_and_store_cocktail_image(image)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         existing_cocktail = _find_cocktail_by_name_ci(db, cocktail_name)
         if existing_cocktail:
@@ -187,14 +225,14 @@ def create_cocktail(
 
         cocktail = Cocktail(
             name=cocktail_name,
-            image_url=cocktail_data.image_url,
-            description=cocktail_data.description,
-            instructions=cocktail_data.instructions,
+            image_url=image_url,
+            description=description,
+            instructions=instructions,
         )
         db.add(cocktail)
         db.flush()
 
-        for ingredient_data in cocktail_data.cocktail_ingredients:
+        for ingredient_data in parsed_ingredients:
             ingredient_name = _normalize_name(ingredient_data.ingredient_name)
             if not ingredient_name:
                 raise HTTPException(status_code=400, detail="Ingredient name cannot be empty")

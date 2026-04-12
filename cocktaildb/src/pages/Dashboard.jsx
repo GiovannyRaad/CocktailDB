@@ -55,6 +55,7 @@ function createEmptyCocktailForm() {
   return {
     name: "",
     image_url: "",
+    image_file: null,
     description: "",
     instructions: "",
     cocktail_ingredients: [createEmptyIngredientRow()],
@@ -422,13 +423,25 @@ function Dashboard() {
       return;
     }
 
-    const payload = {
-      name: newCocktailForm.name.trim(),
-      image_url: newCocktailForm.image_url.trim() || null,
-      description: newCocktailForm.description.trim() || null,
-      instructions: newCocktailForm.instructions.trim() || null,
-      cocktail_ingredients: normalizedIngredients,
-    };
+    if (!newCocktailForm.image_file) {
+      toast.error("Cocktail image is required.");
+      return;
+    }
+
+    if (newCocktailForm.image_file.size > 5 * 1024 * 1024) {
+      toast.error("Image size must be 5MB or less.");
+      return;
+    }
+
+    const payload = new FormData();
+    payload.append("name", newCocktailForm.name.trim());
+    payload.append("description", newCocktailForm.description.trim());
+    payload.append("instructions", newCocktailForm.instructions.trim());
+    payload.append(
+      "cocktail_ingredients",
+      JSON.stringify(normalizedIngredients),
+    );
+    payload.append("image", newCocktailForm.image_file);
 
     try {
       setIsCreatingCocktail(true);
@@ -437,9 +450,8 @@ function Dashboard() {
         method: "POST",
         headers: {
           ...getAuthHeaders(),
-          "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: payload,
       });
 
       if (response.status === 401) {
@@ -457,7 +469,7 @@ function Dashboard() {
       setActiveTab("cocktails");
       setIsAddCocktailOpen(false);
       setNewCocktailForm(createEmptyCocktailForm());
-      toast.success(`Added cocktail: ${payload.name}`);
+      toast.success(`Added cocktail: ${newCocktailForm.name.trim()}`);
     } catch (error) {
       toast.error(error.message || "Failed to create cocktail.");
     } finally {
@@ -785,6 +797,7 @@ function Dashboard() {
           isOpen={isAddCocktailOpen}
           isSavingCocktail={isCreatingCocktail}
           form={newCocktailForm}
+          useImageUpload
           onClose={handleCloseAddCocktailModal}
           onSubmit={handleCreateCocktail}
           onMainFieldChange={handleNewCocktailFieldChange}

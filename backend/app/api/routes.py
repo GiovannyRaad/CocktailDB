@@ -5,6 +5,9 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import selectinload
 
+from app.core.auth import create_access_token
+from app.core.auth import require_authenticated_user
+from app.core.auth import verify_password
 from app.core.database import get_db
 from app.models.cocktail_ingredient import CocktailIngredient
 from app.schemas.cocktail import CocktailCreate
@@ -16,6 +19,8 @@ from app.schemas.ingredient import IngredientCreate
 from app.schemas.ingredient import IngredientRead
 from app.schemas.ingredient import IngredientUpdate
 from app.models.ingredient import Ingredient
+from app.models.user import User
+from app.schemas.auth import LoginRequest, LoginResponse
 
 router = APIRouter(prefix="/api")
 
@@ -74,6 +79,47 @@ def version_check() -> dict[str, str]:
 def info() -> dict[str, str]:
     return {"app": "CocktailDB API", "version": "0.1.0"}
 
+
+@router.post("/login", response_model=LoginResponse)
+def login_user(login_data: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
+    try:
+        user = (
+            db.query(User)
+            .filter(func.lower(User.email) == login_data.email.lower())
+            .first()
+        )
+
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+
+        if not verify_password(login_data.password, user.password):
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+
+        access_token = create_access_token(
+            {
+                "sub": str(user.id),
+                "email": user.email,
+                "is_admin": user.is_admin,
+            }
+        )
+
+        return LoginResponse(
+            id=user.id,
+            email=user.email,
+            is_admin=user.is_admin,
+            access_token=access_token,
+        )
+    except HTTPException:
+        raise
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Database error while logging in") from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Unexpected error while logging in") from exc
+
 @router.get("/cocktails", response_model=list[CocktailRead])
 def get_cocktails(db: Session = Depends(get_db)) -> list[CocktailRead]:
     try:
@@ -121,7 +167,12 @@ def get_cocktail(cocktail_id: int, db: Session = Depends(get_db)) -> CocktailRea
         raise HTTPException(status_code=500, detail="Unexpected error while fetching cocktail") from exc
 
 
-@router.post("/cocktails", response_model=CocktailRead, status_code=201)
+@router.post(
+    "/cocktails",
+    response_model=CocktailRead,
+    status_code=201,
+    dependencies=[Depends(require_authenticated_user)],
+)
 def create_cocktail(
     cocktail_data: CocktailCreate, db: Session = Depends(get_db)
 ) -> CocktailRead:
@@ -193,7 +244,11 @@ def create_cocktail(
         raise HTTPException(status_code=500, detail="Unexpected error while creating cocktail") from exc
 
 
-@router.delete("/cocktails/{cocktail_id}", status_code=204)
+@router.delete(
+    "/cocktails/{cocktail_id}",
+    status_code=204,
+    dependencies=[Depends(require_authenticated_user)],
+)
 def delete_cocktail(cocktail_id: int, db: Session = Depends(get_db)) -> None:
     try:
         cocktail = db.query(Cocktail).filter(Cocktail.id == cocktail_id).first()
@@ -217,7 +272,11 @@ def delete_cocktail(cocktail_id: int, db: Session = Depends(get_db)) -> None:
         raise HTTPException(status_code=500, detail="Unexpected error while deleting cocktail") from exc
 
 
-@router.patch("/cocktails/{cocktail_id}", response_model=CocktailRead)
+@router.patch(
+    "/cocktails/{cocktail_id}",
+    response_model=CocktailRead,
+    dependencies=[Depends(require_authenticated_user)],
+)
 def update_cocktail(
     cocktail_id: int,
     cocktail_data: CocktailUpdate,
@@ -297,7 +356,11 @@ def update_cocktail(
         db.rollback()
         raise HTTPException(status_code=500, detail="Unexpected error while updating cocktail") from exc
 
-@router.get("/ingredients", response_model=list[IngredientRead])
+@router.get(
+    "/ingredients",
+    response_model=list[IngredientRead],
+    dependencies=[Depends(require_authenticated_user)],
+)
 def get_ingredients(db: Session = Depends(get_db)) -> list[IngredientRead]:
     try:
         ingredients = db.query(Ingredient).all()
@@ -310,7 +373,12 @@ def get_ingredients(db: Session = Depends(get_db)) -> list[IngredientRead]:
         raise HTTPException(status_code=500, detail="Unexpected error while fetching ingredients") from exc
 
 
-@router.post("/ingredients", response_model=IngredientRead, status_code=201)
+@router.post(
+    "/ingredients",
+    response_model=IngredientRead,
+    status_code=201,
+    dependencies=[Depends(require_authenticated_user)],
+)
 def create_ingredient(
     ingredient_data: IngredientCreate, db: Session = Depends(get_db)
 ) -> IngredientRead:
@@ -358,7 +426,11 @@ def get_ingredient(ingredient_id: int, db: Session = Depends(get_db)) -> Ingredi
         raise HTTPException(status_code=500, detail="Unexpected error while fetching ingredient") from exc
 
 
-@router.patch("/ingredients/{ingredient_id}", response_model=IngredientRead)
+@router.patch(
+    "/ingredients/{ingredient_id}",
+    response_model=IngredientRead,
+    dependencies=[Depends(require_authenticated_user)],
+)
 def update_ingredient(
     ingredient_id: int,
     ingredient_data: IngredientUpdate,
@@ -402,7 +474,11 @@ def update_ingredient(
 
 
 
-@router.delete("/ingredients/{ingredient_id}", status_code=204)
+@router.delete(
+    "/ingredients/{ingredient_id}",
+    status_code=204,
+    dependencies=[Depends(require_authenticated_user)],
+)
 def delete_ingredient(ingredient_id: int, db: Session = Depends(get_db)) -> None:
     try:
         ingredient = db.query(Ingredient).filter(Ingredient.id == ingredient_id).first()

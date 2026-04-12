@@ -5,6 +5,7 @@ from app.schemas.cocktail_ingredient import (
     CocktailIngredientRead,
 )
 from app.schemas.ingredient import IngredientBase, IngredientCreate, IngredientRead
+from app.schemas.auth import LoginRequest, LoginResponse
 
 __all__ = [
     "CocktailBase",
@@ -16,4 +17,6 @@ __all__ = [
     "CocktailIngredientBase",
     "CocktailIngredientCreate",
     "CocktailIngredientRead",
+    "LoginRequest",
+    "LoginResponse",
 ]

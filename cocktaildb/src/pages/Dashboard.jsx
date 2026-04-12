@@ -74,7 +74,28 @@ async function getErrorMessage(response, fallbackMessage) {
   return fallbackMessage;
 }
 
+function getAuthHeaders(additionalHeaders = {}) {
+  const authToken = localStorage.getItem("auth_token");
+  const authTokenType = localStorage.getItem("auth_token_type") ?? "bearer";
+
+  return authToken
+    ? {
+        ...additionalHeaders,
+        Authorization: `${authTokenType} ${authToken}`,
+      }
+    : additionalHeaders;
+}
+
+function handleSessionExpired() {
+  toast.error("Your session expired. Please log in again.");
+  localStorage.removeItem("auth_token");
+  localStorage.removeItem("auth_token_type");
+  localStorage.removeItem("auth_user");
+  window.location.replace("/login");
+}
+
 function Dashboard() {
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [cocktails, setCocktails] = useState([]);
   const [ingredients, setIngredients] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -101,6 +122,17 @@ function Dashboard() {
   const [editCocktailForm, setEditCocktailForm] = useState(
     createEmptyCocktailForm,
   );
+
+  useEffect(() => {
+    const authToken = localStorage.getItem("auth_token");
+
+    if (!authToken) {
+      window.location.replace("/login");
+      return;
+    }
+
+    setIsCheckingAuth(false);
+  }, []);
 
   const filteredCocktails = useMemo(() => {
     const query = cocktailSearchQuery.trim().toLowerCase();
@@ -136,9 +168,21 @@ function Dashboard() {
 
   async function loadDashboardData() {
     const [cocktailsResponse, ingredientsResponse] = await Promise.all([
-      fetch(`${API_BASE_URL}/api/cocktails`),
-      fetch(`${API_BASE_URL}/api/ingredients`),
+      fetch(`${API_BASE_URL}/api/cocktails`, {
+        headers: getAuthHeaders(),
+      }),
+      fetch(`${API_BASE_URL}/api/ingredients`, {
+        headers: getAuthHeaders(),
+      }),
     ]);
+
+    if (
+      cocktailsResponse.status === 401 ||
+      ingredientsResponse.status === 401
+    ) {
+      handleSessionExpired();
+      throw new Error("Unauthorized");
+    }
 
     if (!cocktailsResponse.ok || !ingredientsResponse.ok) {
       throw new Error("Could not fetch dashboard data");
@@ -160,6 +204,10 @@ function Dashboard() {
   }
 
   useEffect(() => {
+    if (isCheckingAuth) {
+      return;
+    }
+
     let isMounted = true;
 
     async function initializeDashboardData() {
@@ -183,7 +231,11 @@ function Dashboard() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isCheckingAuth]);
+
+  if (isCheckingAuth) {
+    return null;
+  }
 
   async function handleDeleteCocktail(cocktail) {
     const isConfirmed = window.confirm(
@@ -201,8 +253,14 @@ function Dashboard() {
         `${API_BASE_URL}/api/cocktails/${cocktail.id}`,
         {
           method: "DELETE",
+          headers: getAuthHeaders(),
         },
       );
+
+      if (response.status === 401) {
+        handleSessionExpired();
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -235,8 +293,14 @@ function Dashboard() {
         `${API_BASE_URL}/api/ingredients/${ingredient.id}`,
         {
           method: "DELETE",
+          headers: getAuthHeaders(),
         },
       );
+
+      if (response.status === 401) {
+        handleSessionExpired();
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -372,10 +436,16 @@ function Dashboard() {
       const response = await fetch(`${API_BASE_URL}/api/cocktails`, {
         method: "POST",
         headers: {
+          ...getAuthHeaders(),
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       });
+
+      if (response.status === 401) {
+        handleSessionExpired();
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -504,11 +574,17 @@ function Dashboard() {
         {
           method: "PATCH",
           headers: {
+            ...getAuthHeaders(),
             "Content-Type": "application/json",
           },
           body: JSON.stringify(payload),
         },
       );
+
+      if (response.status === 401) {
+        handleSessionExpired();
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -549,10 +625,16 @@ function Dashboard() {
       const response = await fetch(`${API_BASE_URL}/api/ingredients`, {
         method: "POST",
         headers: {
+          ...getAuthHeaders(),
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ name: ingredientName }),
       });
+
+      if (response.status === 401) {
+        handleSessionExpired();
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -606,11 +688,17 @@ function Dashboard() {
         {
           method: "PATCH",
           headers: {
+            ...getAuthHeaders(),
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ name: ingredientName }),
         },
       );
+
+      if (response.status === 401) {
+        handleSessionExpired();
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(

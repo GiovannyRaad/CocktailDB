@@ -11,6 +11,16 @@ function Homepage() {
       <div className="absolute inset-0 bg-gradient-to-b from-[#1a120d]/60 via-[#2b1b12]/45 to-[#120c08]/70" />
       <Dust />
 
+      <motion.a
+        href="/login"
+        className="tavern-cta absolute left-4 top-4 z-20 rounded-full border border-[#f4dfc0]/35 bg-[#24150e]/75 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-[#f8ead3] shadow-[0_10px_24px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:left-6 sm:top-6"
+        initial={{ opacity: 0, x: -12, y: -6 }}
+        animate={{ opacity: 1, x: 0, y: 0 }}
+        transition={{ duration: 0.55, ease: "easeOut" }}
+      >
+        Login
+      </motion.a>
+
       <div className="relative z-10 mx-auto flex min-h-screen max-w-5xl items-center justify-center px-6 py-12 text-center sm:px-8">
         <section className="w-full max-w-3xl">
           <motion.h1

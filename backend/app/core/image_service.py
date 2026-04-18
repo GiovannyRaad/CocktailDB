@@ -13,6 +13,7 @@ from app.core.config import COCKTAIL_UPLOADS_DIR
 
 MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024
 MAX_IMAGE_DIMENSION = 800
+WEBP_QUALITY = 80
 
 
 def ensure_upload_directories() -> None:
@@ -51,8 +52,14 @@ def process_and_store_cocktail_image(upload: UploadFile) -> str:
         )
 
     ensure_upload_directories()
-    filename = f"{uuid4().hex}.jpg"
+    filename = f"{uuid4().hex}.webp"
     image_path = Path(COCKTAIL_UPLOADS_DIR) / filename
-    image.save(image_path, format="JPEG", quality=90, optimize=True)
+    image.save(
+        image_path,
+        format="WEBP",
+        quality=WEBP_QUALITY,
+        optimize=True,
+        method=6,
+    )
 
     return f"{BACKEND_PUBLIC_BASE_URL.rstrip('/')}/uploads/cocktails/{filename}"

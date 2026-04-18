@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from urllib.parse import quote_plus
@@ -39,6 +40,22 @@ def check_database_connection() -> None:
         raise ConnectionError("Could not connect to the database") from exc
     except SQLAlchemyError as exc:
         raise ConnectionError("Database connection check failed") from exc
+
+
+def get_database_target() -> str:
+    # Return a safe description of the DB target without leaking credentials.
+    try:
+        url = make_url(DATABASE_URL)
+    except Exception:
+        return "unknown database target"
+
+    if url.drivername.startswith("sqlite"):
+        return f"{url.drivername}:///{url.database or ':memory:'}"
+
+    host = url.host or "unknown-host"
+    port = f":{url.port}" if url.port else ""
+    database = f"/{url.database}" if url.database else ""
+    return f"{url.drivername}://{host}{port}{database}"
 
 
 def _placeholder_image_url(cocktail_name: str) -> str:

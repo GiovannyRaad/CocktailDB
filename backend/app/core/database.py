@@ -2,7 +2,9 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.pool import NullPool
 from urllib.parse import quote_plus
+import os
 
 from app.core.config import DATABASE_URL
 
@@ -12,11 +14,21 @@ class Base(DeclarativeBase):
     pass
 
 
+def _env_true(name: str) -> bool:
+    value = os.getenv(name, "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
 # Create the database engine once and reuse it across sessions.
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
-)
+engine_kwargs: dict[str, object] = {
+    "connect_args": {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
+}
+
+# Supabase transaction/session poolers should disable SQLAlchemy client-side pooling.
+if _env_true("DB_USE_NULL_POOL") and DATABASE_URL.startswith("postgresql"):
+    engine_kwargs["poolclass"] = NullPool
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 
 # Factory for database sessions used by requests and other services.
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

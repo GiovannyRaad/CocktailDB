@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from io import BytesIO
 from pathlib import Path
+from urllib.error import HTTPError
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 from uuid import uuid4
 
 from fastapi import UploadFile
@@ -9,6 +12,11 @@ from PIL import Image
 
 from app.core.config import BACKEND_PUBLIC_BASE_URL
 from app.core.config import COCKTAIL_UPLOADS_DIR
+from app.core.config import IMAGE_STORAGE_BACKEND
+from app.core.config import SUPABASE_SERVICE_ROLE_KEY
+from app.core.config import SUPABASE_STORAGE_BUCKET
+from app.core.config import SUPABASE_STORAGE_FOLDER
+from app.core.config import SUPABASE_URL
 
 
 MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024
@@ -28,6 +36,45 @@ def _center_square_crop(image: Image.Image) -> Image.Image:
     right = left + side
     bottom = top + side
     return image.crop((left, top, right, bottom))
+
+
+def _upload_to_supabase_storage(image_bytes: bytes, filename: str) -> str:
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        raise ValueError(
+            "Supabase storage is enabled but SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing"
+        )
+
+    object_path = f"{SUPABASE_STORAGE_FOLDER}/{filename}" if SUPABASE_STORAGE_FOLDER else filename
+    encoded_path = quote(object_path, safe="/")
+    upload_url = f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/{SUPABASE_STORAGE_BUCKET}/{encoded_path}"
+
+    request = Request(
+        upload_url,
+        data=image_bytes,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+            "apikey": SUPABASE_SERVICE_ROLE_KEY,
+            "Content-Type": "image/webp",
+            "x-upsert": "false",
+        },
+    )
+
+    try:
+        with urlopen(request):
+            pass
+    except HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="ignore")
+        raise ValueError(
+            f"Failed to upload image to Supabase Storage (HTTP {exc.code}): {error_body or exc.reason}"
+        ) from exc
+    except Exception as exc:
+        raise ValueError(f"Failed to upload image to Supabase Storage: {exc}") from exc
+
+    return (
+        f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/public/"
+        f"{SUPABASE_STORAGE_BUCKET}/{encoded_path}"
+    )
 
 
 def process_and_store_cocktail_image(upload: UploadFile) -> str:
@@ -51,15 +98,22 @@ def process_and_store_cocktail_image(upload: UploadFile) -> str:
             Image.Resampling.LANCZOS,
         )
 
-    ensure_upload_directories()
     filename = f"{uuid4().hex}.webp"
-    image_path = Path(COCKTAIL_UPLOADS_DIR) / filename
+
+    output_buffer = BytesIO()
     image.save(
-        image_path,
+        output_buffer,
         format="WEBP",
         quality=WEBP_QUALITY,
         optimize=True,
         method=6,
     )
+    output_bytes = output_buffer.getvalue()
 
+    if IMAGE_STORAGE_BACKEND == "supabase":
+        return _upload_to_supabase_storage(output_bytes, filename)
+
+    ensure_upload_directories()
+    image_path = Path(COCKTAIL_UPLOADS_DIR) / filename
+    image_path.write_bytes(output_bytes)
     return f"{BACKEND_PUBLIC_BASE_URL.rstrip('/')}/uploads/cocktails/{filename}"

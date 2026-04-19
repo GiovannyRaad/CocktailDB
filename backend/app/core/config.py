@@ -41,6 +41,11 @@ COCKTAIL_UPLOADS_DIR = os.path.join(UPLOADS_DIR, "cocktails")
 BACKEND_PUBLIC_BASE_URL = os.getenv(
     "BACKEND_PUBLIC_BASE_URL", "http://127.0.0.1:8000"
 )
+IMAGE_STORAGE_BACKEND = os.getenv("IMAGE_STORAGE_BACKEND", "local").strip().lower()
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "cocktails").strip()
+SUPABASE_STORAGE_FOLDER = os.getenv("SUPABASE_STORAGE_FOLDER", "cocktails").strip("/")
 JWT_SECRET_KEY = os.getenv(
 	"JWT_SECRET_KEY",
 	"4f9da87f844c26ec926a5f784edc813dc4cf0d577123a582bb0157a1e0dc2519",

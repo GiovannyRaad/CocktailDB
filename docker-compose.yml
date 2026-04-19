@@ -1,0 +1,25 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: cocktaildb-backend
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./cocktaildb
+    container_name: cocktaildb-frontend
+    environment:
+      - VITE_API_BASE_URL=http://127.0.0.1:8000
+    volumes:
+      - ./cocktaildb:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend

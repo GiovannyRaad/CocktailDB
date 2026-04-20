@@ -151,7 +151,10 @@ function Menu() {
   }, [cocktails, searchQuery, selectedIngredients]);
 
   const pageSize = isDesktop ? 9 : 8;
-  const totalPages = Math.max(1, Math.ceil(filteredCocktails.length / pageSize));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredCocktails.length / pageSize),
+  );
 
   const paginatedCocktails = useMemo(() => {
     const safePage = Math.min(currentPage, totalPages);
@@ -182,7 +185,8 @@ function Menu() {
     [filteredCocktails],
   );
 
-  const canShowPagination = !isLoading && !error && hasCocktails && hasFilteredCocktails;
+  const canShowPagination =
+    !isLoading && !error && hasCocktails && hasFilteredCocktails;
   const safeCurrentPage = Math.min(currentPage, totalPages);
 
   return (
@@ -265,11 +269,11 @@ function Menu() {
           <>
             <section className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5">
               {paginatedCocktails.map((cocktail, index) => (
-              <CocktailCard
-                key={cocktail.id ?? `${cocktail.name}-${index}`}
-                cocktail={cocktail}
-                index={index}
-              />
+                <CocktailCard
+                  key={cocktail.id ?? `${cocktail.name}-${index}`}
+                  cocktail={cocktail}
+                  index={index}
+                />
               ))}
             </section>
 
@@ -283,21 +287,49 @@ function Menu() {
                   <button
                     type="button"
                     className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-amber-300/35 bg-[linear-gradient(180deg,rgba(255,190,92,0.95),rgba(255,143,26,0.92))] text-[1.45rem] font-black leading-none text-white disabled:cursor-not-allowed disabled:opacity-40"
-                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                    onClick={() =>
+                      setCurrentPage((page) => Math.max(1, page - 1))
+                    }
                     disabled={safeCurrentPage <= 1}
                     aria-label="Previous page"
                   >
-                    ←
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-5 w-5"
+                      aria-hidden="true"
+                    >
+                      <path d="M15 6l-6 6 6 6" />
+                    </svg>
                   </button>
 
                   <button
                     type="button"
                     className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-amber-300/35 bg-[linear-gradient(180deg,rgba(255,190,92,0.95),rgba(255,143,26,0.92))] text-[1.45rem] font-black leading-none text-white disabled:cursor-not-allowed disabled:opacity-40"
-                    onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                    onClick={() =>
+                      setCurrentPage((page) => Math.min(totalPages, page + 1))
+                    }
                     disabled={safeCurrentPage >= totalPages}
                     aria-label="Next page"
                   >
-                    →
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-5 w-5"
+                      aria-hidden="true"
+                    >
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
                   </button>
                 </div>
               </div>

@@ -385,6 +385,7 @@ function Dashboard() {
     return {
       name: cocktail.name ?? "",
       image_url: cocktail.imageUrl ?? "",
+      image_file: null,
       description: cocktail.description ?? "",
       instructions: cocktail.instructions ?? "",
       cocktail_ingredients:
@@ -578,16 +579,59 @@ function Dashboard() {
       return;
     }
 
-    const payload = {
-      name: editCocktailForm.name.trim(),
-      image_url: editCocktailForm.image_url.trim() || null,
-      description: editCocktailForm.description.trim() || null,
-      instructions: editCocktailForm.instructions.trim() || null,
-      cocktail_ingredients: normalizedIngredients,
-    };
+    if (
+      editCocktailForm.image_file &&
+      editCocktailForm.image_file.size > 5 * 1024 * 1024
+    ) {
+      toast.error("Image size must be 5MB or less.");
+      return;
+    }
 
     try {
       setIsUpdatingCocktail(true);
+
+      let nextImageUrl = editCocktailForm.image_url.trim() || null;
+
+      if (editCocktailForm.image_file) {
+        const imagePayload = new FormData();
+        imagePayload.append("image", editCocktailForm.image_file);
+
+        const imageResponse = await fetch(
+          `${API_BASE_URL}/api/cocktails/${editingCocktailId}/image`,
+          {
+            method: "POST",
+            headers: {
+              ...getAuthHeaders(),
+            },
+            body: imagePayload,
+          },
+        );
+
+        if (imageResponse.status === 401) {
+          handleSessionExpired();
+          return;
+        }
+
+        if (!imageResponse.ok) {
+          throw new Error(
+            await getErrorMessage(
+              imageResponse,
+              "Failed to upload cocktail image.",
+            ),
+          );
+        }
+
+        const updatedWithImage = await imageResponse.json();
+        nextImageUrl = updatedWithImage?.image_url ?? nextImageUrl;
+      }
+
+      const payload = {
+        name: editCocktailForm.name.trim(),
+        image_url: nextImageUrl,
+        description: editCocktailForm.description.trim() || null,
+        instructions: editCocktailForm.instructions.trim() || null,
+        cocktail_ingredients: normalizedIngredients,
+      };
 
       const response = await fetch(
         `${API_BASE_URL}/api/cocktails/${editingCocktailId}`,
@@ -818,6 +862,7 @@ function Dashboard() {
           isOpen={isEditCocktailOpen}
           isSavingCocktail={isUpdatingCocktail}
           form={editCocktailForm}
+          useImageUpload
           onClose={handleCloseEditCocktailModal}
           onSubmit={handleUpdateCocktail}
           onMainFieldChange={handleEditCocktailFieldChange}

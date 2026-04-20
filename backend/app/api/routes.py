@@ -431,6 +431,65 @@ def update_cocktail(
         db.rollback()
         raise HTTPException(status_code=500, detail="Unexpected error while updating cocktail") from exc
 
+
+@router.post(
+    "/cocktails/{cocktail_id}/image",
+    response_model=CocktailRead,
+    dependencies=[Depends(require_authenticated_user)],
+)
+def upload_cocktail_image(
+    cocktail_id: int,
+    image: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> CocktailRead:
+    try:
+        cocktail = db.query(Cocktail).filter(Cocktail.id == cocktail_id).first()
+        if not cocktail:
+            raise HTTPException(status_code=404, detail="Cocktail not found")
+
+        previous_image_url = cocktail.image_url
+
+        try:
+            cocktail.image_url = process_and_store_cocktail_image(image)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        db.commit()
+
+        updated_cocktail = (
+            db.query(Cocktail)
+            .options(
+                selectinload(Cocktail.cocktail_ingredients).selectinload(
+                    CocktailIngredient.ingredient
+                )
+            )
+            .filter(Cocktail.id == cocktail_id)
+            .first()
+        )
+        if not updated_cocktail:
+            raise HTTPException(status_code=404, detail="Cocktail not found")
+
+        if previous_image_url and previous_image_url != updated_cocktail.image_url:
+            try:
+                delete_cocktail_image(previous_image_url)
+            except Exception as exc:
+                logger.warning(
+                    "Cocktail %s image replaced but old image cleanup failed: %s",
+                    cocktail_id,
+                    exc,
+                )
+
+        return serialize_cocktail(updated_cocktail)
+    except HTTPException:
+        db.rollback()
+        raise
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Database error while updating cocktail image") from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Unexpected error while updating cocktail image") from exc
+
 @router.get(
     "/ingredients",
     response_model=list[IngredientRead],

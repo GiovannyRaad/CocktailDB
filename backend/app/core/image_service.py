@@ -4,6 +4,8 @@ from io import BytesIO
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import quote
+from urllib.parse import unquote
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
@@ -75,6 +77,76 @@ def _upload_to_supabase_storage(image_bytes: bytes, filename: str) -> str:
         f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/public/"
         f"{SUPABASE_STORAGE_BUCKET}/{encoded_path}"
     )
+
+
+def _delete_from_supabase_storage(image_url: str) -> None:
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        raise ValueError(
+            "Supabase storage is enabled but SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing"
+        )
+
+    public_prefix = (
+        f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/public/{SUPABASE_STORAGE_BUCKET}/"
+    )
+    if not image_url.startswith(public_prefix):
+        return
+
+    object_path = image_url[len(public_prefix):]
+    if not object_path:
+        return
+
+    encoded_path = quote(unquote(object_path), safe="/")
+    delete_url = (
+        f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/"
+        f"{SUPABASE_STORAGE_BUCKET}/{encoded_path}"
+    )
+
+    request = Request(
+        delete_url,
+        method="DELETE",
+        headers={
+            "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+            "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        },
+    )
+
+    try:
+        with urlopen(request):
+            pass
+    except HTTPError as exc:
+        if exc.code == 404:
+            return
+        error_body = exc.read().decode("utf-8", errors="ignore")
+        raise ValueError(
+            f"Failed to delete image from Supabase Storage (HTTP {exc.code}): {error_body or exc.reason}"
+        ) from exc
+    except Exception as exc:
+        raise ValueError(f"Failed to delete image from Supabase Storage: {exc}") from exc
+
+
+def _delete_local_cocktail_image(image_url: str) -> None:
+    parsed = urlparse(image_url)
+    if not parsed.path.startswith("/uploads/cocktails/"):
+        return
+
+    filename = Path(parsed.path).name
+    if not filename:
+        return
+
+    image_path = Path(COCKTAIL_UPLOADS_DIR) / filename
+    if image_path.exists() and image_path.is_file():
+        image_path.unlink()
+
+
+def delete_cocktail_image(image_url: str | None) -> None:
+    if not image_url:
+        return
+
+    if IMAGE_STORAGE_BACKEND == "supabase":
+        _delete_from_supabase_storage(image_url)
+        return
+
+    _delete_local_cocktail_image(image_url)
 
 
 def process_and_store_cocktail_image(upload: UploadFile) -> str:

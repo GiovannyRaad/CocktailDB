@@ -1,4 +1,5 @@
 import json
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import File, Form, UploadFile
@@ -12,6 +13,7 @@ from app.core.auth import create_access_token
 from app.core.auth import require_authenticated_user
 from app.core.auth import verify_password
 from app.core.database import get_db
+from app.core.image_service import delete_cocktail_image
 from app.core.image_service import process_and_store_cocktail_image
 from app.models.cocktail_ingredient import CocktailIngredient
 from app.schemas.cocktail import CocktailCreate
@@ -28,6 +30,7 @@ from app.models.user import User
 from app.schemas.auth import LoginRequest, LoginResponse
 
 router = APIRouter(prefix="/api")
+logger = logging.getLogger("uvicorn.error")
 
 
 def _normalize_name(name: str) -> str:
@@ -293,11 +296,24 @@ def delete_cocktail(cocktail_id: int, db: Session = Depends(get_db)) -> None:
         if not cocktail:
             raise HTTPException(status_code=404, detail="Cocktail not found")
 
+        image_url = cocktail.image_url
+
         db.query(CocktailIngredient).filter(
             CocktailIngredient.cocktail_id == cocktail_id
         ).delete(synchronize_session=False)
         db.delete(cocktail)
         db.commit()
+
+        # Keep API delete successful even if storage cleanup fails.
+        try:
+            delete_cocktail_image(image_url)
+        except Exception as exc:
+            logger.warning(
+                "Cocktail %s deleted from database but image cleanup failed: %s",
+                cocktail_id,
+                exc,
+            )
+
         return None
     except HTTPException:
         db.rollback()

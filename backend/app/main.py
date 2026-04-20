@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import logging
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +16,19 @@ import app.models
 
 
 logger = logging.getLogger("uvicorn.error")
+
+
+def _parse_cors_origins() -> list[str]:
+    configured = os.getenv("CORS_ALLOWED_ORIGINS", "")
+    if configured.strip():
+        return [origin.strip() for origin in configured.split(",") if origin.strip()]
+
+    return [
+        "http://localhost:5173",
+        "https://cocktail-db-two.vercel.app",
+        "https://cocktaildb.app",
+        "https://www.cocktaildb.app",
+    ]
 
 
 @asynccontextmanager
@@ -35,10 +49,7 @@ app = FastAPI(title="CocktailDB API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://cocktail-db-two.vercel.app",
-    ],
+    allow_origins=_parse_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

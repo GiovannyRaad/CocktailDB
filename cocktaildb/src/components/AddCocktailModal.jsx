@@ -57,26 +57,47 @@ function AddCocktailModal({
             </label>
 
             {useImageUpload ? (
-              <label className="form-control w-full">
-                <span className="mb-1 block text-xs uppercase tracking-[0.2em] text-amber-200/70">
-                  Image Upload
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="file-input file-input-bordered w-full"
-                  onChange={(event) =>
-                    onMainFieldChange(
-                      "image_file",
-                      event.target.files?.[0] ?? null,
-                    )
-                  }
-                  required
-                />
-                <span className="mt-1 block text-xs text-amber-100/60">
-                  Max 5MB. Image is center-cropped to 1:1 and capped at 800x800.
-                </span>
-              </label>
+              <div className="grid grid-cols-1 gap-3 sm:col-span-1 sm:grid-cols-2">
+                <label className="form-control w-full">
+                  <span className="mb-1 block text-xs uppercase tracking-[0.2em] text-amber-200/70">
+                    Image Upload
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="file-input file-input-bordered w-full"
+                    onChange={(event) =>
+                      onMainFieldChange(
+                        "image_file",
+                        event.target.files?.[0] ?? null,
+                      )
+                    }
+                  />
+                  <span className="mt-1 block text-xs text-amber-100/60">
+                    Optional. Max 5MB. Image is center-cropped to 1:1 and capped
+                    at 800x800.
+                  </span>
+                </label>
+
+                <label className="form-control w-full">
+                  <span className="mb-1 block text-xs uppercase tracking-[0.2em] text-amber-200/70">
+                    Image URL
+                  </span>
+                  <input
+                    type="url"
+                    className="input input-bordered w-full"
+                    value={form.image_url}
+                    onChange={(event) =>
+                      onMainFieldChange("image_url", event.target.value)
+                    }
+                    placeholder="https://..."
+                  />
+                  <span className="mt-1 block text-xs text-amber-100/60">
+                    Paste a direct image link if you do not want to upload a
+                    file.
+                  </span>
+                </label>
+              </div>
             ) : (
               <label className="form-control w-full">
                 <span className="mb-1 block text-xs uppercase tracking-[0.2em] text-amber-200/70">

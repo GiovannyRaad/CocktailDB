@@ -423,12 +423,15 @@ function Dashboard() {
       return;
     }
 
-    if (!newCocktailForm.image_file) {
-      toast.error("Cocktail image is required.");
+    const imageUrl = newCocktailForm.image_url.trim();
+    const hasImageFile = Boolean(newCocktailForm.image_file);
+
+    if (!hasImageFile && !imageUrl) {
+      toast.error("Add an image upload or paste an image URL.");
       return;
     }
 
-    if (newCocktailForm.image_file.size > 5 * 1024 * 1024) {
+    if (hasImageFile && newCocktailForm.image_file.size > 5 * 1024 * 1024) {
       toast.error("Image size must be 5MB or less.");
       return;
     }
@@ -441,7 +444,12 @@ function Dashboard() {
       "cocktail_ingredients",
       JSON.stringify(normalizedIngredients),
     );
-    payload.append("image", newCocktailForm.image_file);
+
+    if (hasImageFile) {
+      payload.append("image", newCocktailForm.image_file);
+    } else if (imageUrl) {
+      payload.append("image_url", imageUrl);
+    }
 
     try {
       setIsCreatingCocktail(true);

@@ -76,47 +76,49 @@ function CocktailsTable({
       </div>
 
       <div className="hidden overflow-x-auto sm:block">
-        <table className="table table-zebra table-sm">
+        <table className="table table-zebra table-fixed">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Ingredients</th>
-              <th>Description</th>
-              <th className="text-right">Actions</th>
+              <th className="w-5/12 px-6 py-4">Name</th>
+              <th className="w-2/12 px-6 py-4">Ingredients</th>
+              <th className="w-4/12 px-6 py-4">Description</th>
+              <th className="w-1/12 px-6 py-4 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {isLoading
               ? Array.from({ length: 5 }).map((_, index) => (
                   <tr key={index}>
-                    <td>
+                    <td className="px-6 py-5 align-top">
                       <div className="skeleton h-4 w-24" />
                     </td>
-                    <td>
+                    <td className="px-6 py-5 align-top">
                       <div className="skeleton h-4 w-10" />
                     </td>
-                    <td>
+                    <td className="px-6 py-5 align-top">
                       <div className="skeleton h-4 w-40" />
                     </td>
-                    <td>
-                      <div className="skeleton ml-auto h-6 w-16" />
+                    <td className="px-6 py-5 align-top">
+                      <div className="skeleton ml-auto h-6 w-24" />
                     </td>
                   </tr>
                 ))
               : cocktails.map((cocktail) => (
                   <tr key={cocktail.id}>
-                    <td className="font-medium text-amber-100">
+                    <td className="px-6 py-5 align-top font-medium text-amber-100">
                       {cocktail.name}
                     </td>
-                    <td>{cocktail.ingredients.length}</td>
-                    <td className="max-w-72 truncate text-amber-100/75">
+                    <td className="px-6 py-5 align-top">
+                      {cocktail.ingredients.length}
+                    </td>
+                    <td className="px-6 py-5 align-top text-amber-100/75">
                       {cocktail.description}
                     </td>
-                    <td>
-                      <div className="flex justify-end gap-2">
+                    <td className="px-6 py-5 align-top">
+                      <div className="flex justify-end gap-4">
                         <button
                           type="button"
-                          className="btn btn-xs"
+                          className="btn btn-sm"
                           disabled={
                             isUpdatingCocktail &&
                             updatingCocktailId === cocktail.id
@@ -130,7 +132,7 @@ function CocktailsTable({
                         </button>
                         <button
                           type="button"
-                          className="btn btn-xs btn-error"
+                          className="btn btn-sm btn-error"
                           disabled={deletingCocktailId === cocktail.id}
                           onClick={() => onDeleteCocktail(cocktail)}
                         >

@@ -1,5 +1,6 @@
 import json
 import logging
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import File, Form, UploadFile
@@ -35,6 +36,21 @@ logger = logging.getLogger("uvicorn.error")
 
 def _normalize_name(name: str) -> str:
     return name.strip()
+
+
+def _normalize_image_url(image_url: str | None) -> str | None:
+    if image_url is None:
+        return None
+
+    normalized_image_url = image_url.strip()
+    if not normalized_image_url:
+        return None
+
+    parsed_url = urlparse(normalized_image_url)
+    if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+        raise HTTPException(status_code=400, detail="Image URL must be a valid http or https URL")
+
+    return normalized_image_url
 
 
 def _find_ingredient_by_name_ci(db: Session, ingredient_name: str) -> Ingredient | None:
@@ -205,6 +221,7 @@ def create_cocktail(
     description: str | None = Form(None),
     instructions: str | None = Form(None),
     cocktail_ingredients: str = Form("[]"),
+    image_url: str | None = Form(None),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ) -> CocktailRead:
@@ -215,12 +232,16 @@ def create_cocktail(
 
         parsed_ingredients = _parse_cocktail_ingredients_payload(cocktail_ingredients)
 
-        image_url: str | None = None
+        stored_image_url: str | None = None
+        normalized_image_url = _normalize_image_url(image_url)
+
         if image is not None:
             try:
-                image_url = process_and_store_cocktail_image(image)
+                stored_image_url = process_and_store_cocktail_image(image)
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
+        else:
+            stored_image_url = normalized_image_url
 
         existing_cocktail = _find_cocktail_by_name_ci(db, cocktail_name)
         if existing_cocktail:
@@ -228,7 +249,7 @@ def create_cocktail(
 
         cocktail = Cocktail(
             name=cocktail_name,
-            image_url=image_url,
+            image_url=stored_image_url,
             description=description,
             instructions=instructions,
         )
@@ -353,7 +374,7 @@ def update_cocktail(
 
             cocktail.name = cocktail_name
         if cocktail_data.image_url is not None:
-            cocktail.image_url = cocktail_data.image_url
+            cocktail.image_url = _normalize_image_url(cocktail_data.image_url)
         if cocktail_data.description is not None:
             cocktail.description = cocktail_data.description
         if cocktail_data.instructions is not None:

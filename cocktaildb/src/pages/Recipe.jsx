@@ -19,16 +19,10 @@ function normalizeRecipeCocktail(cocktail) {
   };
 }
 
-function formatIngredientLine(ingredient) {
+function formatIngredientRatio(ingredient) {
   const amount = ingredient?.amount?.trim?.() ?? "";
   const unit = ingredient?.unit?.trim?.() ?? "";
-  const name = ingredient?.ingredient_name?.trim?.() ?? "";
-  const note = ingredient?.note?.trim?.() ?? "";
-
-  const amountText = [amount, unit].filter(Boolean).join(" ").trim();
-  const baseText = amountText ? `${amountText} ${name}` : name;
-
-  return note ? `${baseText} - ${note}` : baseText;
+  return [amount, unit].filter(Boolean).join(" ").trim();
 }
 
 function Recipe() {
@@ -167,21 +161,23 @@ function Recipe() {
                   cocktail.ingredients.map((ingredient) => (
                     <div
                       key={ingredient.id}
-                      className="flex flex-col gap-1 rounded-xl border border-amber-200/10 bg-[#231914]/65 p-3 sm:flex-row sm:items-center sm:justify-between"
+                      className="rounded-xl border border-amber-200/10 bg-[#231914]/65 p-3"
                     >
-                      <div>
+                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                         <p className="font-medium text-amber-100">
                           {ingredient.ingredient_name}
                         </p>
-                        {ingredient.note ? (
-                          <p className="text-sm text-amber-100/65">
-                            {ingredient.note}
+                        {formatIngredientRatio(ingredient) ? (
+                          <p className="text-base font-semibold text-white sm:text-lg">
+                            {formatIngredientRatio(ingredient)}
                           </p>
                         ) : null}
                       </div>
-                      <p className="text-sm uppercase tracking-[0.2em] text-amber-200/70">
-                        {formatIngredientLine(ingredient)}
-                      </p>
+                      {ingredient.note ? (
+                        <p className="mt-1 text-sm text-amber-100/65">
+                          {ingredient.note}
+                        </p>
+                      ) : null}
                     </div>
                   ))
                 ) : (

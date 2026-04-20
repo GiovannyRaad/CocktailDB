@@ -57,6 +57,8 @@ function Menu() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isIngredientFilterOpen, setIsIngredientFilterOpen] = useState(false);
   const [selectedIngredients, setSelectedIngredients] = useState([]);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     let isMounted = true;
@@ -99,6 +101,24 @@ function Menu() {
     };
   }, []);
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+
+    const updateViewport = (event) => {
+      setIsDesktop(event.matches);
+    };
+
+    setIsDesktop(mediaQuery.matches);
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", updateViewport);
+      return () => mediaQuery.removeEventListener("change", updateViewport);
+    }
+
+    mediaQuery.addListener(updateViewport);
+    return () => mediaQuery.removeListener(updateViewport);
+  }, []);
+
   const allIngredientOptions = useMemo(() => {
     const values = cocktails.flatMap((cocktail) => cocktail.ingredientNames);
     return Array.from(new Set(values)).sort((first, second) =>
@@ -130,6 +150,24 @@ function Menu() {
     });
   }, [cocktails, searchQuery, selectedIngredients]);
 
+  const pageSize = isDesktop ? 9 : 8;
+  const totalPages = Math.max(1, Math.ceil(filteredCocktails.length / pageSize));
+
+  const paginatedCocktails = useMemo(() => {
+    const safePage = Math.min(currentPage, totalPages);
+    const startIndex = (safePage - 1) * pageSize;
+
+    return filteredCocktails.slice(startIndex, startIndex + pageSize);
+  }, [currentPage, filteredCocktails, pageSize, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedIngredients]);
+
+  useEffect(() => {
+    setCurrentPage((previousPage) => Math.min(previousPage, totalPages));
+  }, [totalPages]);
+
   function handleToggleIngredientFilter(ingredientName) {
     setSelectedIngredients((previous) =>
       previous.includes(ingredientName)
@@ -143,6 +181,9 @@ function Menu() {
     () => filteredCocktails.length > 0,
     [filteredCocktails],
   );
+
+  const canShowPagination = !isLoading && !error && hasCocktails && hasFilteredCocktails;
+  const safeCurrentPage = Math.min(currentPage, totalPages);
 
   return (
     <main
@@ -221,15 +262,47 @@ function Menu() {
         ) : null}
 
         {!isLoading && !error && hasCocktails && hasFilteredCocktails ? (
-          <section className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5">
-            {filteredCocktails.map((cocktail, index) => (
+          <>
+            <section className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5">
+              {paginatedCocktails.map((cocktail, index) => (
               <CocktailCard
                 key={cocktail.id ?? `${cocktail.name}-${index}`}
                 cocktail={cocktail}
                 index={index}
               />
-            ))}
-          </section>
+              ))}
+            </section>
+
+            {canShowPagination ? (
+              <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+                <p className="text-sm text-amber-100/75">
+                  Page {safeCurrentPage} of {totalPages}
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-amber-300/35 bg-[linear-gradient(180deg,rgba(255,190,92,0.95),rgba(255,143,26,0.92))] text-[1.45rem] font-black leading-none text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                    disabled={safeCurrentPage <= 1}
+                    aria-label="Previous page"
+                  >
+                    ←
+                  </button>
+
+                  <button
+                    type="button"
+                    className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-amber-300/35 bg-[linear-gradient(180deg,rgba(255,190,92,0.95),rgba(255,143,26,0.92))] text-[1.45rem] font-black leading-none text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                    disabled={safeCurrentPage >= totalPages}
+                    aria-label="Next page"
+                  >
+                    →
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </>
         ) : null}
 
         <IngredientFilterModal

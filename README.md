@@ -182,4 +182,4 @@ python app/scripts/create_user.py user@example.com your_password
 
 ## License
 
-This project currently has no explicit open-source license. Add a `LICENSE` file if you plan to distribute it publicly.
+This project is licensed under the MIT License. See the `LICENSE` file for details.

@@ -1,176 +1,185 @@
 # CocktailDB
 
-A modern full-stack cocktail recipe platform built with **React**, **FastAPI**, and **PostgreSQL**.
-Browse curated cocktails, explore ingredients, and manage recipes through a protected admin dashboard.
+CocktailDB is a full-stack cocktail management platform with a public menu experience and an authenticated admin dashboard for managing cocktails, ingredients, and images.
 
----
+## Highlights
 
-## Features
-
-### Public Website
-
-- Browse cocktail collection
-- Responsive modern UI
-- Cocktail cards with images
-- Recipe details
-- Ingredient lists with measurements
-- Search and filtering system
-
-### Admin Dashboard
-
-- Secure login authentication
-- Add new cocktails
-- Edit existing cocktails
-- Delete cocktails
-- Manage ingredients
-- Upload cocktail images
-
-### Backend API
-
-- RESTful API with FastAPI
-- PostgreSQL database
-- SQLAlchemy ORM
-- JWT authentication
-- Image upload integration
-- Structured schema validation with Pydantic
-
----
+- Full CRUD for cocktails and ingredients
+- JWT-based authentication for protected admin actions
+- Image upload pipeline with local or Supabase-backed storage
+- FastAPI backend with SQLAlchemy models and Pydantic schemas
+- React + Vite frontend with a modern dashboard UI
+- Docker Compose support for running the full stack locally
 
 ## Tech Stack
 
-### Frontend
-
-- React
-- Vite
-- Tailwind CSS
-- React Router
-
-### Backend
-
-- FastAPI
-- SQLAlchemy
-- Pydantic
-- Uvicorn
-
-### Database
-
-- PostgreSQL
-
-### Storage
-
-- Supabase Storage
-
----
+- Frontend: React 19, Vite, Tailwind CSS, DaisyUI
+- Backend: FastAPI, SQLAlchemy, Pydantic, Uvicorn
+- Auth: JWT (PyJWT), password hashing with Passlib
+- Database: SQLite (default local) or PostgreSQL
+- Image Processing: Pillow
+- Optional Storage: Supabase Storage
 
 ## Project Structure
 
 ```text
-frontend/
-backend/
-
-backend/app/
-  models/
-  schemas/
-  routes/
-  core/
+CocktailDB/
+├─ backend/
+│  ├─ app/
+│  │  ├─ api/            # FastAPI routes
+│  │  ├─ core/           # config, auth, db, image services
+│  │  ├─ models/         # SQLAlchemy models
+│  │  ├─ schemas/        # Pydantic request/response schemas
+│  │  └─ scripts/        # utility scripts (e.g. create_user.py)
+│  ├─ uploads/           # local image storage
+│  └─ requirements.txt
+├─ cocktaildb/           # React frontend
+└─ docker-compose.yml
 ```
 
----
+## Quick Start (Local Development)
 
-## Getting Started
-
-### 1. Clone the repository
+### 1. Clone the repo
 
 ```bash
 git clone <your-repo-url>
-cd cocktaildb
+cd CocktailDB
 ```
 
 ### 2. Backend setup
 
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate
+python -m venv .venv
+```
+
+On Windows (PowerShell):
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+On macOS/Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
 ```
 
-Create `.env`
+Create `.env` in `backend/`:
 
 ```env
-DATABASE_URL=
-SECRET_KEY=
+# Database mode: sqlite or postgres
+DB_MODE=sqlite
+
+# SQLite
+SQLITE_DATABASE_URL=sqlite:///./cocktail.db
+
+# PostgreSQL (used when DB_MODE=postgres)
+# DATABASE_URL=postgresql+psycopg2://user:password@host:5432/dbname?sslmode=require
+# or provide DB_USER / DB_PASSWORD / DB_HOST / DB_PORT / DB_NAME
+
+# Auth
+JWT_SECRET_KEY=change_this_in_production
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# CORS (comma-separated)
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+
+# Image storage
+IMAGE_STORAGE_BACKEND=local
+BACKEND_PUBLIC_BASE_URL=http://127.0.0.1:8000
+UPLOADS_DIR=./uploads
+
+# Supabase (required only if IMAGE_STORAGE_BACKEND=supabase)
 SUPABASE_URL=
-SUPABASE_KEY=
-SUPABASE_BUCKET=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_STORAGE_BUCKET=cocktails
+SUPABASE_STORAGE_FOLDER=cocktails
 ```
 
-Run server:
+Run the API:
 
 ```bash
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
-
----
 
 ### 3. Frontend setup
 
+In a new terminal:
+
 ```bash
-cd frontend
+cd cocktaildb
 npm install
 npm run dev
 ```
 
----
+Frontend default URL: `http://localhost:5173`
+
+## Run With Docker Compose
+
+From the repository root:
+
+```bash
+docker compose up --build
+```
+
+Services:
+
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:8000`
 
 ## API Overview
 
-```text
-GET    /api/cocktails
-GET    /api/ingredients
+Base path: `/api`
 
-POST   /api/auth/login
+Public endpoints:
 
-POST   /api/cocktails
-PATCH  /api/cocktails/{id}
-DELETE /api/cocktails/{id}
+- `GET /health`
+- `GET /version`
+- `GET /info`
+- `POST /login`
+- `GET /cocktails`
+- `GET /cocktails/{cocktail_id}`
+- `GET /ingredients/{ingredient_id}`
 
-POST   /api/upload-image
+Protected endpoints (Bearer token required):
+
+- `POST /cocktails`
+- `PATCH /cocktails/{cocktail_id}`
+- `DELETE /cocktails/{cocktail_id}`
+- `POST /cocktails/{cocktail_id}/image`
+- `GET /ingredients`
+- `POST /ingredients`
+- `PATCH /ingredients/{ingredient_id}`
+- `DELETE /ingredients/{ingredient_id}`
+
+## Create an Admin/User Account
+
+From `backend/` (with environment configured):
+
+```bash
+python app/scripts/create_user.py admin@example.com your_password --admin
 ```
 
----
+Create a non-admin user:
 
-## Deployment
-
-Planned production setup:
-
-```text
-Frontend: Vercel / Render
-Backend: Render / Docker VPS
-Database: Supabase PostgreSQL
-Storage: Supabase Storage
+```bash
+python app/scripts/create_user.py user@example.com your_password
 ```
 
----
+## Deployment Notes
 
-## Future Improvements
-
-- Favorites system
-- Categories & tags
-- Better search
-- Cocktail ratings
-- User accounts
-- Dark / light themes
-- Analytics dashboard
-
----
-
-## Author
-
-Built by Gio.
-
----
+- Frontend is configured for Vercel workflows (`cocktaildb/vercel.json`).
+- Backend can be deployed via Docker or any FastAPI-compatible host.
+- Set production-grade values for `JWT_SECRET_KEY`, CORS origins, and DB credentials.
 
 ## License
 
-Personal project.
+This project currently has no explicit open-source license. Add a `LICENSE` file if you plan to distribute it publicly.

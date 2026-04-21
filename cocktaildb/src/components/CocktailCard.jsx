@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 
 function CocktailCard({ cocktail, index = 0 }) {
   const imageAlt = `${cocktail.name} cocktail`;
+  const recipeUrl = cocktail.id ? `/recipe/${cocktail.id}` : "/menu";
 
   return (
     <motion.article
@@ -15,23 +16,25 @@ function CocktailCard({ cocktail, index = 0 }) {
         ease: "easeOut",
       }}
       whileHover={{ y: -4, scale: 1.02 }}
-      className="group card overflow-hidden rounded-none border border-white/10 bg-[#1a120f]/82 shadow-[0_14px_30px_rgba(0,0,0,0.4)] backdrop-blur-sm transition-shadow duration-200 hover:shadow-[0_20px_40px_rgba(0,0,0,0.55)]"
+      className="group card flex h-full flex-col overflow-hidden rounded-none border border-white/10 bg-[#1a120f]/82 shadow-[0_14px_30px_rgba(0,0,0,0.4)] backdrop-blur-sm transition-shadow duration-200 hover:shadow-[0_20px_40px_rgba(0,0,0,0.55)]"
     >
-      <figure className="relative aspect-square w-full overflow-hidden">
-        <img
-          src={cocktail.imageUrl}
-          alt={imageAlt}
-          loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          onError={(event) => {
-            event.currentTarget.src =
-              "https://placehold.co/640x960/png?text=CocktailDB";
-          }}
-        />
-        <span className="pointer-events-none absolute inset-0 border-2 border-amber-200 opacity-0 transition-all duration-200 ease-out group-hover:opacity-100 group-active:opacity-100 group-hover:shadow-[inset_0_0_0_2px_rgba(253,224,71,1),0_0_24px_rgba(251,191,36,0.9)] group-active:shadow-[inset_0_0_0_3px_rgba(254,240,138,1),0_0_34px_rgba(251,191,36,1)]" />
-      </figure>
+      <a href={recipeUrl} aria-label={`View ${cocktail.name} recipe`}>
+        <figure className="relative aspect-square w-full overflow-hidden">
+          <img
+            src={cocktail.imageUrl}
+            alt={imageAlt}
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            onError={(event) => {
+              event.currentTarget.src =
+                "https://placehold.co/640x960/png?text=CocktailDB";
+            }}
+          />
+          <span className="pointer-events-none absolute inset-0 border-2 border-amber-200 opacity-0 transition-all duration-200 ease-out group-hover:opacity-100 group-active:opacity-100 group-hover:shadow-[inset_0_0_0_2px_rgba(253,224,71,1),0_0_24px_rgba(251,191,36,0.9)] group-active:shadow-[inset_0_0_0_3px_rgba(254,240,138,1),0_0_34px_rgba(251,191,36,1)]" />
+        </figure>
+      </a>
 
-      <div className="card-body gap-3 p-3 sm:p-4">
+      <div className="card-body flex flex-1 flex-col gap-3 p-3 sm:p-4">
         <h3 className="font-serif text-base tracking-wide text-amber-50 sm:text-lg">
           {cocktail.name}
         </h3>
@@ -40,9 +43,9 @@ function CocktailCard({ cocktail, index = 0 }) {
           {cocktail.description}
         </p>
 
-        <div className="card-actions mt-1 justify-end">
+        <div className="card-actions mt-auto pt-2 justify-end">
           <a
-            href={cocktail.id ? `/recipe/${cocktail.id}` : "/menu"}
+            href={recipeUrl}
             className="btn btn-sm border-none bg-amber-500 px-4 text-xs font-semibold tracking-wide text-[#24150f] transition duration-300 hover:scale-[1.02] hover:bg-amber-400"
           >
             View Recipe
